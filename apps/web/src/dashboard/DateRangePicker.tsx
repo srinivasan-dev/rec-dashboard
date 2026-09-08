@@ -13,11 +13,9 @@ export interface DateRangePickerProps {
   isRefreshing?: boolean;
 }
 
-type RelativeDirection = 'last' | 'next';
-type RelativeUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
+type RelativeUnit = 'hours' | 'days' | 'weeks' | 'months' | 'years';
 
 const RELATIVE_UNITS: { value: RelativeUnit; label: string; labelSingular: string }[] = [
-  { value: 'minutes', label: 'Minutes', labelSingular: 'Minute' },
   { value: 'hours', label: 'Hours', labelSingular: 'Hour' },
   { value: 'days', label: 'Days', labelSingular: 'Day' },
   { value: 'weeks', label: 'Weeks', labelSingular: 'Week' },
@@ -54,7 +52,6 @@ function daysAgo(days: number): { from: string; to: string } {
 }
 
 const UNIT_TO_MS: Record<RelativeUnit, number> = {
-  minutes: 60_000,
   hours: 60 * 60_000,
   days: 24 * 60 * 60_000,
   weeks: 7 * 24 * 60 * 60_000,
@@ -63,24 +60,19 @@ const UNIT_TO_MS: Record<RelativeUnit, number> = {
 };
 
 /**
- * Resolves a "Last/Next N Unit" pick to concrete dates against real "now". apps/api's date
- * filters are day-granularity (matching data/*.csv, which have no time-of-day component), so a
- * sub-day amount (e.g. "Last 15 Minutes") still resolves to a real, correct date -- it just can't
- * distinguish itself from "Last 1 Hour" once truncated to a day. That's an honest consequence of
- * the underlying data's precision, not a bug in this control.
+ * Resolves a "Last N Unit" pick to concrete dates against real "now". No "Next" direction --
+ * this reviews reconciliation history, and a future-dated range can never match anything in it,
+ * so offering one would just be a dead end. apps/api's date filters are day-granularity (matching
+ * data/*.csv, which have no time-of-day component), so a sub-day amount (e.g. "Last 3 Hours")
+ * still resolves to a real, correct date -- it just can't distinguish itself from "Last 20 Hours"
+ * once truncated to a day. "Minutes" was dropped from the unit list entirely for the same reason,
+ * one step further: at that granularity every value collapses to "today" regardless, so the unit
+ * offered no real precision, just false confidence in it.
  */
-function relativeRange(
-  direction: RelativeDirection,
-  amount: number,
-  unit: RelativeUnit,
-): { from: string; to: string } {
+function relativeRange(amount: number, unit: RelativeUnit): { from: string; to: string } {
   const now = new Date();
-  const offset = new Date(
-    now.getTime() + (direction === 'last' ? -1 : 1) * amount * UNIT_TO_MS[unit],
-  );
-  return direction === 'last'
-    ? { from: toIsoDate(offset), to: toIsoDate(now) }
-    : { from: toIsoDate(now), to: toIsoDate(offset) };
+  const offset = new Date(now.getTime() - amount * UNIT_TO_MS[unit]);
+  return { from: toIsoDate(offset), to: toIsoDate(now) };
 }
 
 const DISPLAY_FORMAT = new Intl.DateTimeFormat('en-US', {
@@ -103,10 +95,23 @@ function absoluteLabel(from: string | undefined, to: string | undefined): string
 }
 
 /**
- * Kibana-style time range picker: a "Quick select" relative builder (Last/Next N Unit), a grid
- * of commonly-used presets, and a precise absolute range. docs/product-spec.md never specified
- * this control; it's a direct UX request (see
- * docs/sessions/2026-09-08-epic16-toolbar-redesign.md for the simpler version this replaced).
+ * Kibana-style time range picker: a "Quick select" relative builder (Last N Unit), a grid of
+ * commonly-used presets, and a precise absolute range -- all staged behind one shared Apply
+ * button at the bottom of the panel (`activeSection` tracks which of Quick select / Absolute
+ * range was actually touched, so Apply knows which draft to commit; a preset has nothing to
+ * stage and applies immediately on click instead). docs/product-spec.md never specified this
+ * control; it's a direct UX request (see docs/sessions/2026-09-08-epic16-toolbar-redesign.md for
+ * the simpler version this replaced).
+ *
+ * Picking a range here never fetches anything by itself -- every method only updates this
+ * component's own *pending* selection (`pendingFrom`/`pendingTo`) and the button's preview label.
+ * Quick select starts with no amount entered, and nothing is staged until Apply is clicked. The
+ * actual `onChange` (which changes the URL-persisted filters that drive every query on the page)
+ * fires only when the refresh icon next to this picker is clicked -- a direct request: reviewing
+ * reconciliation data shouldn't refetch mid-pick, only once the merchant has decided on a range
+ * and explicitly asks to apply it. If the pending range hasn't actually changed, the refresh icon
+ * instead falls back to its original job, a plain re-fetch of the current range (`onRefresh`) --
+ * so it's never a dead click either way.
  */
 export function DateRangePicker({
   from,
@@ -118,44 +123,87 @@ export function DateRangePicker({
   const { isOpen, close, toggle, containerRef } = usePopover<HTMLDivElement>();
 
   const [label, setLabel] = useState(() => absoluteLabel(from, to));
+  const [pendingFrom, setPendingFrom] = useState(from);
+  const [pendingTo, setPendingTo] = useState(to);
   const [draftFrom, setDraftFrom] = useState(from ?? '');
   const [draftTo, setDraftTo] = useState(to ?? '');
-  const [relativeDirection, setRelativeDirection] = useState<RelativeDirection>('last');
-  const [relativeAmount, setRelativeAmount] = useState(15);
-  const [relativeUnit, setRelativeUnit] = useState<RelativeUnit>('minutes');
+  // No default amount -- quick select starts empty rather than silently pre-selecting "Last 24
+  // Hours", so nothing is picked until the merchant actually chooses a value here.
+  const [relativeAmountInput, setRelativeAmountInput] = useState('');
+  const [relativeUnit, setRelativeUnit] = useState<RelativeUnit>('hours');
+  const relativeAmount = Number(relativeAmountInput);
+  const hasValidRelativeAmount = relativeAmountInput.trim() !== '' && relativeAmount > 0;
+  // One shared Apply button serves both Quick select and Absolute range (Commonly used applies
+  // immediately on click -- there's nothing to fill in first, so it never needs one). This tracks
+  // whichever of the other two the merchant actually touched, so the single Apply knows which
+  // draft to commit -- not both, and not neither.
+  const [activeSection, setActiveSection] = useState<'relative' | 'absolute' | null>(null);
+
+  const hasPendingChange = pendingFrom !== from || pendingTo !== to;
 
   function openPanel(): void {
-    setDraftFrom(from ?? '');
-    setDraftTo(to ?? '');
+    // Reflects the latest *pending* pick, not the last-applied `from`/`to` props -- reopening the
+    // popover before hitting refresh shouldn't discard a selection still waiting to be applied.
+    setDraftFrom(pendingFrom ?? '');
+    setDraftTo(pendingTo ?? '');
+    setActiveSection(null);
     toggle();
   }
 
   function applyCommonPreset(preset: CommonPreset): void {
-    onChange(daysAgo(preset.days));
+    const range = daysAgo(preset.days);
+    setPendingFrom(range.from);
+    setPendingTo(range.to);
     setLabel(preset.label);
     close();
   }
 
-  function applyRelative(): void {
-    onChange(relativeRange(relativeDirection, relativeAmount, relativeUnit));
-    const unitLabel =
-      relativeAmount === 1
-        ? RELATIVE_UNITS.find((u) => u.value === relativeUnit)!.labelSingular
-        : RELATIVE_UNITS.find((u) => u.value === relativeUnit)!.label;
-    setLabel(`${relativeDirection === 'last' ? 'Last' : 'Next'} ${relativeAmount} ${unitLabel}`);
+  // The single Apply button below commits whichever of Quick select / Absolute range the
+  // merchant actually touched (`activeSection`) -- nothing is fetched until it's clicked, and
+  // then the refresh icon is clicked too (see component docstring).
+  function handleApply(): void {
+    if (activeSection === 'relative') {
+      if (!hasValidRelativeAmount) return;
+      const range = relativeRange(relativeAmount, relativeUnit);
+      setPendingFrom(range.from);
+      setPendingTo(range.to);
+      const unitLabel =
+        relativeAmount === 1
+          ? RELATIVE_UNITS.find((u) => u.value === relativeUnit)!.labelSingular
+          : RELATIVE_UNITS.find((u) => u.value === relativeUnit)!.label;
+      setLabel(`Last ${relativeAmount} ${unitLabel}`);
+    } else if (activeSection === 'absolute') {
+      setPendingFrom(draftFrom || undefined);
+      setPendingTo(draftTo || undefined);
+      setLabel(absoluteLabel(draftFrom || undefined, draftTo || undefined));
+    } else {
+      return;
+    }
     close();
   }
 
-  function applyAbsolute(): void {
-    onChange({ from: draftFrom || undefined, to: draftTo || undefined });
-    setLabel(absoluteLabel(draftFrom || undefined, draftTo || undefined));
-    close();
-  }
+  const canApply =
+    activeSection === 'relative' ? hasValidRelativeAmount : activeSection === 'absolute';
 
   function clearRange(): void {
-    onChange({ from: undefined, to: undefined });
+    setPendingFrom(undefined);
+    setPendingTo(undefined);
+    setDraftFrom('');
+    setDraftTo('');
+    setRelativeAmountInput('');
     setLabel('All time');
+    setActiveSection(null);
     close();
+  }
+
+  // The refresh icon does double duty: apply a pending range that hasn't been pushed to the app
+  // yet, or -- if the merchant hasn't actually changed anything -- just re-fetch the current one.
+  function handleRefreshClick(): void {
+    if (hasPendingChange) {
+      onChange({ from: pendingFrom, to: pendingTo });
+    } else {
+      onRefresh();
+    }
   }
 
   return (
@@ -193,26 +241,14 @@ export function DateRangePicker({
 
         {isOpen ? (
           <div
-            className={`${popover.panel} ${popover.panelLeft} ${styles.rangePanel}`}
+            className={`${popover.panel} ${styles.rangePanel}`}
             role="dialog"
             aria-label="Select date range"
           >
             <section className={styles.section}>
               <p className={popover.panelHeading}>Quick select</p>
               <div className={styles.relativeRow}>
-                <label className="visually-hidden" htmlFor="range-direction">
-                  Direction
-                </label>
-                <select
-                  id="range-direction"
-                  value={relativeDirection}
-                  onChange={(event) =>
-                    setRelativeDirection(event.target.value as RelativeDirection)
-                  }
-                >
-                  <option value="last">Last</option>
-                  <option value="next">Next</option>
-                </select>
+                <span className={styles.relativeDirectionLabel}>Last</span>
                 <label className="visually-hidden" htmlFor="range-amount">
                   Amount
                 </label>
@@ -220,19 +256,25 @@ export function DateRangePicker({
                   id="range-amount"
                   type="number"
                   min={1}
+                  placeholder="e.g. 24"
                   className={styles.amountInput}
-                  value={relativeAmount}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    setRelativeAmount(Math.max(1, Number(event.target.value) || 1))
-                  }
+                  value={relativeAmountInput}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    setRelativeAmountInput(event.target.value);
+                    setActiveSection('relative');
+                  }}
                 />
                 <label className="visually-hidden" htmlFor="range-unit">
                   Unit
                 </label>
                 <select
                   id="range-unit"
+                  className={styles.unitSelect}
                   value={relativeUnit}
-                  onChange={(event) => setRelativeUnit(event.target.value as RelativeUnit)}
+                  onChange={(event) => {
+                    setRelativeUnit(event.target.value as RelativeUnit);
+                    setActiveSection('relative');
+                  }}
                 >
                   {RELATIVE_UNITS.map((unit) => (
                     <option key={unit.value} value={unit.value}>
@@ -240,14 +282,6 @@ export function DateRangePicker({
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  className={buttons.primary}
-                  onClick={applyRelative}
-                  aria-label="Apply relative range"
-                >
-                  Apply
-                </button>
               </div>
             </section>
 
@@ -280,9 +314,10 @@ export function DateRangePicker({
                     type="date"
                     value={draftFrom}
                     max={draftTo || undefined}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      setDraftFrom(event.target.value)
-                    }
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                      setDraftFrom(event.target.value);
+                      setActiveSection('absolute');
+                    }}
                   />
                 </label>
                 <span aria-hidden="true">&ndash;</span>
@@ -292,37 +327,51 @@ export function DateRangePicker({
                     type="date"
                     value={draftTo}
                     min={draftFrom || undefined}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                      setDraftTo(event.target.value)
-                    }
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                      setDraftTo(event.target.value);
+                      setActiveSection('absolute');
+                    }}
                   />
                 </label>
               </div>
-              <div className={styles.actions}>
-                <button type="button" className={buttons.secondary} onClick={clearRange}>
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  className={buttons.primary}
-                  onClick={applyAbsolute}
-                  aria-label="Apply absolute range"
-                >
-                  Apply
-                </button>
-              </div>
             </section>
+
+            <hr className={styles.divider} />
+
+            {/* One shared Apply for both Quick select and Absolute range above -- Commonly used
+                applies immediately on click and needs none. `activeSection` says which of the two
+                drafts this commits. */}
+            <div className={styles.actions}>
+              <button type="button" className={buttons.secondary} onClick={clearRange}>
+                Clear
+              </button>
+              <button
+                type="button"
+                className={buttons.primary}
+                onClick={handleApply}
+                disabled={!canApply}
+                aria-label="Apply selected date range"
+              >
+                Apply
+              </button>
+            </div>
           </div>
         ) : null}
       </div>
 
       <button
         type="button"
-        className={buttons.icon}
-        aria-label={isRefreshing ? 'Refreshing reconciliation data' : 'Refresh reconciliation data'}
+        className={`${buttons.icon} ${hasPendingChange ? styles.refreshPending : ''}`}
+        aria-label={
+          isRefreshing
+            ? 'Refreshing reconciliation data'
+            : hasPendingChange
+              ? 'Apply selected date range'
+              : 'Refresh reconciliation data'
+        }
         aria-busy={isRefreshing}
-        title="Refresh"
-        onClick={onRefresh}
+        title={hasPendingChange ? 'Apply selected date range' : 'Refresh'}
+        onClick={handleRefreshClick}
         disabled={isRefreshing}
       >
         <svg
@@ -341,6 +390,11 @@ export function DateRangePicker({
             strokeLinejoin="round"
           />
         </svg>
+        {/* A small dot flags that a pending range hasn't been applied yet -- clicking this button
+            will apply it (and fetch), not just re-fetch the range already showing. */}
+        {hasPendingChange && !isRefreshing ? (
+          <span className={styles.pendingDot} aria-hidden="true" />
+        ) : null}
       </button>
     </div>
   );

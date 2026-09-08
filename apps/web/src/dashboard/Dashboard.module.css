@@ -24,6 +24,26 @@
   transition:
     flex-basis var(--transition-slow),
     max-width var(--transition-slow);
+  /* Bounded to the viewport (topbar height + `.content`'s own top/bottom padding), the same
+     formula SearchChatPanel.module.css's `.inner` uses for the drawer beside it -- derived from
+     the shared `--topbar-height`/`--content-padding-y` tokens, not a hardcoded pixel figure, so it
+     tracks the real viewport height and stays in sync if either token ever changes. This is what
+     makes the dashboard scroll independently in place, the same way the chat drawer already does,
+     instead of relying on `.content` (its parent) to scroll. */
+  height: calc(100vh - var(--topbar-height) - (var(--content-padding-y) * 2));
+  overflow-y: auto;
+  /* Without this, content wider than `.page` (e.g. the widgets row's 3 columns at their 280px
+     floor each, once the chat drawer compacts this column to 70%) rendered fully visible past
+     `.page`'s own right edge instead of being contained -- visibly spilling over the drawer beside
+     it rather than getting its own horizontal scrollbar the way `.content` (this column's own
+     parent) used to provide before `.page` became independently scrollable. */
+  overflow-x: auto;
+  /* `.widgetsRow`'s column-count breakpoints below measure *this* (the column's own width), not
+     the viewport -- the same reasoning as every other `@container` in this codebase (see
+     ExceptionsByReasonChart.module.css). A wide viewport with the chat drawer open can compact
+     this column well past the point where 3 (or even 2) fixed-minimum-width cards still fit, and a
+     viewport-only breakpoint has no way to know that. */
+  container-type: inline-size;
 }
 
 .pageCompact {
@@ -31,23 +51,68 @@
   max-width: 70%;
 }
 
-.header {
+/* Applied instead of `.pageCompact` whenever the chat drawer is closed (Dashboard.tsx) -- `.page`
+   still scrolls internally either way (that part doesn't depend on the drawer), but with the
+   drawer closed it's the full-width, "this is just the page" view, where a visible scrollbar reads
+   as un-webapp-like browser chrome. Firefox via `scrollbar-width`, Chrome/Safari/Edge via the
+   `::-webkit-scrollbar` pseudo-element beneath -- scrolling itself (wheel/trackpad/keyboard) is
+   unaffected, this only hides the bar. */
+.pageScrollbarHidden {
+  scrollbar-width: none;
+}
+
+.pageScrollbarHidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* The page title and status banner used to live in a header row here -- the title now lives in
+   AppShell's shared topbar (see AppShell.module.css's `.pageTitle`), and the status banner moved
+   into SearchHero, directly under the search bar. This is what's left: a small mobile-only row
+   for the export shortcut (docs/product-spec.md §11, "Export button remains accessible" -- the
+   toolbar/all-clear section below can scroll out of view on a phone once summary cards and
+   breakdown pills stack, but this sits above all of that). */
+.mobileExportRow {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
+}
+
+/* Temporary D3 widget-section experiment (ReconciliationPieChart / FinancialImpactBarChart /
+   ExceptionsByReasonChart) standing in for SummaryCards -- see the commented-out import at the
+   top of Dashboard.tsx. minmax(280px, 1fr) lets the row collapse to fewer columns before any one
+   card gets uncomfortably narrow. */
+.widgetsRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
   gap: 16px;
 }
 
-.title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-text);
+/* Keyed to `.page`'s own width (see its `container-type` above) rather than the viewport -- three
+   280px-minimum columns plus two 16px gaps need roughly 900px of *this column's* own width, not
+   900px of screen, to actually fit without any one card being squeezed. */
+@container (max-width: 900px) {
+  .widgetsRow {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
 }
 
-.headerSearch {
-  flex: none;
-  width: 100%;
-  max-width: 380px;
+@container (max-width: 620px) {
+  .widgetsRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* breakpoint: tablet-portrait and below, see tokens.css breakpoints block -- the chat panel
+   becomes a full-screen overlay at this width (SearchChatPanel.module.css), so the main column
+   shouldn't visually compress to make room for a sibling column that no longer exists. */
+@media (max-width: 1023px) {
+  .pageCompact {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+
+  .splitLayout {
+    position: relative;
+  }
 }
 
 .searchModeBar {
@@ -64,12 +129,6 @@
 .searchModeSummary {
   font-size: 13px;
   color: var(--color-text);
-}
-
-.subtitle {
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--color-text-secondary);
 }
 
 .section {

@@ -2,14 +2,18 @@
   animation: fadeInUp var(--transition-slow);
 }
 
+/* Now lives inside Toolbar.tsx's merged row (left side) rather than its own standalone block
+   above the table -- `justify-content`/`margin-bottom` accordingly dropped in favor of Toolbar's
+   own `justify-content: space-between` positioning this whole group. */
 .tableActions {
   display: flex;
-  justify-content: flex-end;
   gap: 8px;
-  margin-bottom: 10px;
 }
 
 .tableActionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
@@ -58,6 +62,13 @@
   background: #fafafa;
 }
 
+/* Difference/Amount headers, over right-aligned `.cellNumeric` figures below -- text-align here
+   is enough since `.sortButton` is inline-flex (an inline-level box, so it follows its parent's
+   text-align) and the plain "Amount" header is just text. */
+.headerCellNumeric {
+  text-align: right;
+}
+
 .sortButton {
   display: inline-flex;
   align-items: center;
@@ -66,7 +77,9 @@
   border: none;
   padding: 0;
   font-size: 11px;
-  font-weight: 600;
+  /* Always bold -- not just on hover/active/sorted -- so every column header reads the same
+     weight regardless of interaction state. */
+  font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--color-text-muted);
@@ -75,6 +88,7 @@
 
 .sortButton:hover {
   color: var(--color-text);
+  font-weight: 700;
 }
 
 .sortCaret {
@@ -85,7 +99,7 @@
 
 .plainHeaderCell {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--color-text-muted);
@@ -135,6 +149,13 @@
   color: var(--color-attention-text);
 }
 
+/* A matched transaction isn't an exception -- green (the same "all clear"/positive language used
+   elsewhere in this app), not the amber/gray tones reserved for something needing review. */
+.reasonPill[data-severity='matched'] {
+  background: var(--color-positive-bg);
+  color: var(--color-positive-text);
+}
+
 .expandHeaderCell {
   width: 36px;
 }
@@ -149,18 +170,29 @@
   justify-content: center;
   width: 24px;
   height: 24px;
+  /* No background/border set anywhere here falls back to the browser's native dark button
+     chrome behind the caret instead of a flat, always-visible icon chip -- explicit values keep
+     it a light rounded square at rest, same idea as buttons.module.css's `.icon` treatment. */
+  background: var(--color-bg);
+  border: none;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   transition: background var(--transition-fast);
 }
 
 .expandToggle:hover {
-  background: var(--color-bg);
+  background: var(--color-border);
   color: var(--color-text);
 }
 
 .expandCaret {
-  font-size: 11px;
+  /* A single right-pointing chevron that rotates on expand, rather than swapping glyphs (▸/▾) --
+     one icon, animated, instead of two different unicode shapes with mismatched optical weight. */
+  transition: transform var(--transition-fast);
+}
+
+.expandToggle[aria-expanded='true'] .expandCaret {
+  transform: rotate(90deg);
 }
 
 .detailRow:hover {
@@ -182,11 +214,38 @@
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 16px;
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+.pageNav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* Pushes the Previous/Page X of Y/Next group to the row's end even when the page-size field
+     (flex: none, sized to its own content) is absent -- `.pagination`'s own `space-between` alone
+     would otherwise leave this group sitting flush left. */
+  margin-left: auto;
+}
+
+.pageSizeField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pageSizeSelect {
+  height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
 }
 
 .pageButton {

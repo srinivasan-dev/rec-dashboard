@@ -64,6 +64,13 @@ Full detail lives in per-stack docs — read the relevant one before writing cod
   e2e suite on every push and PR — the same checks as local hooks plus e2e, as the actual gate
   before merge.
 
+## Working with Claude in this repo
+
+- **Don't modify test files, run the test suite, or run a regression pass (Jest/Playwright/
+  lint/typecheck) after a change unless explicitly asked.** Regression runs are slow; assume the
+  user will ask for one by name (or a PR/commit is imminent) when they want it. This overrides
+  the general "test before reporting done" instinct for routine, incremental changes in this repo.
+
 ## When in doubt
 
 Prefer the boring, explicit, testable option over the clever one. This is a reconciliation

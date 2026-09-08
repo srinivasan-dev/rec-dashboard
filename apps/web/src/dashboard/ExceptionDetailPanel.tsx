@@ -1,20 +1,28 @@
-import { useId, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { ReactNode } from 'react';
 
-import type { ExceptionDto, LedgerDto } from '../api/types';
+import type { LedgerDto, TransactionDto } from '../api/types';
 import { useExceptionExplanation } from '../hooks/useExceptionExplanation';
-import { useReconciliationException } from '../hooks/useReconciliationException';
+import { useReconciliationTransaction } from '../hooks/useReconciliationTransaction';
 import buttons from '../styles/buttons.module.css';
 import styles from './ExceptionDetailPanel.module.css';
 import { EXCEPTION_LABELS } from './exceptionLabels';
 import { formatCurrencyAmount } from './formatting';
 
-type DetailTab = 'details' | 'comparison' | 'ai';
-
-const TABS: { id: DetailTab; icon: string | null; label: string }[] = [
-  { id: 'details', icon: null, label: 'Details' },
-  { id: 'comparison', icon: null, label: 'Settlement vs. Ledger' },
-  { id: 'ai', icon: '✦', label: 'AI Explain' },
-];
+/**
+ * The mock AI explanation text uses lightweight markdown -- `**bold**` around the transaction
+ * headline -- to draw the eye to the key fact before the sentence explaining it. Rendered as
+ * plain text this shows the literal asterisks, so split on that one marker and render each bolded
+ * segment as a real `<strong>` instead. Deliberately minimal (bold only, no links/lists/etc.) --
+ * the mock/LLM output this feeds from is a single short paragraph, never richer markdown.
+ */
+function renderFormattedExplanation(text: string): ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((segment, index) => {
+    if (segment.startsWith('**') && segment.endsWith('**')) {
+      return <strong key={index}>{segment.slice(2, -2)}</strong>;
+    }
+    return <span key={index}>{segment}</span>;
+  });
+}
 
 export interface ExceptionDetailPanelProps {
   transactionId: string;
@@ -27,22 +35,31 @@ export interface ExceptionDetailPanelProps {
  * own data (rather than reusing the row's already-loaded summary) so it stays correct even if the
  * table's filters/page change while expanded, same reasoning the drawer used to document.
  *
+ * Two-column layout (not the earlier Details/Settlement vs. Ledger/AI Explain tabs) -- everything
+ * a merchant needs to read is now visible without clicking through tabs: the left column stacks
+ * the review pill, amount comparison, difference, side-by-side table, and a highlighted next-step
+ * callout; the right column is always-visible AI Explain, no longer gated behind opening its own
+ * tab (so `useExceptionExplanation` is unconditionally enabled once this panel mounts, i.e. once a
+ * merchant expands the row at all).
+ *
  * Deliberately no focus trap here: unlike the modal drawer it replaced, this renders inline in
  * normal document/tab order inside a table row -- trapping focus would be actively wrong (a
  * merchant should be able to Tab straight through into the next row).
+ *
+ * On mobile/tablet-portrait this same non-modal component renders inside ExceptionCard instead of
+ * a table row; ExceptionDetailPanel.module.css stacks the two columns there so it still reads as
+ * the spec's "full-screen" detail view without becoming a modal.
  */
 export function ExceptionDetailPanel({ transactionId }: ExceptionDetailPanelProps): JSX.Element {
-  const query = useReconciliationException(transactionId);
-  const [activeTab, setActiveTab] = useState<DetailTab>('details');
-  const idBase = useId();
+  const query = useReconciliationTransaction(transactionId);
 
   return (
     <div className={styles.panel}>
-      {query.isLoading ? <p aria-live="polite">Loading exception detail...</p> : null}
+      {query.isLoading ? <p aria-live="polite">Loading transaction detail...</p> : null}
 
       {query.isError ? (
         <div role="alert">
-          <p>We couldn&apos;t load this exception&apos;s detail right now.</p>
+          <p>We couldn&apos;t load this transaction&apos;s detail right now.</p>
           <button type="button" className={buttons.secondary} onClick={() => query.refetch()}>
             Retry
           </button>
@@ -50,86 +67,80 @@ export function ExceptionDetailPanel({ transactionId }: ExceptionDetailPanelProp
       ) : null}
 
       {query.data ? (
-        <>
-          <DetailTabs
-            idBase={idBase}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            transactionId={query.data.transactionId}
-          />
-          <div className={styles.body}>
-            <DetailPanels idBase={idBase} exception={query.data} activeTab={activeTab} />
-          </div>
-        </>
+        query.data.reason === 'MATCHED' ? (
+          <MatchedPanel transaction={query.data} />
+        ) : (
+          <DetailLayout exception={query.data} />
+        )
       ) : null}
     </div>
   );
 }
 
-function DetailTabs({
-  idBase,
-  activeTab,
-  onTabChange,
-  transactionId,
-}: {
-  idBase: string;
-  activeTab: DetailTab;
-  onTabChange: (tab: DetailTab) => void;
-  transactionId: string;
-}): JSX.Element {
-  function handleKeyDown(event: ReactKeyboardEvent, index: number): void {
-    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-    event.preventDefault();
-    const next =
-      event.key === 'ArrowRight'
-        ? (index + 1) % TABS.length
-        : (index - 1 + TABS.length) % TABS.length;
-    onTabChange(TABS[next]!.id);
-    document.getElementById(`${idBase}-tab-${TABS[next]!.id}`)?.focus();
-  }
-
+/**
+ * A matched transaction isn't an exception -- there's nothing to explain, no next step, no AI
+ * summary to generate. A short confirmation instead of the full two-column exception layout: the
+ * settlement/ledger amounts (always equal, that's what "matched" means) and a plain "no action
+ * needed" message.
+ */
+function MatchedPanel({ transaction }: { transaction: TransactionDto }): JSX.Element {
   return (
-    <div className={styles.tablist} role="tablist" aria-label={`Views for ${transactionId}`}>
-      {TABS.map((tab, index) => (
-        <button
-          key={tab.id}
-          id={`${idBase}-tab-${tab.id}`}
-          type="button"
-          role="tab"
-          className={styles.tab}
-          aria-selected={activeTab === tab.id}
-          aria-controls={`${idBase}-panel-${tab.id}`}
-          onClick={() => onTabChange(tab.id)}
-          onKeyDown={(event) => handleKeyDown(event, index)}
-        >
-          {tab.icon ? <span aria-hidden="true">{tab.icon} </span> : null}
-          {tab.label}
-        </button>
-      ))}
+    <div className={styles.panelStack}>
+      <span className={styles.matchedPill}>
+        <span aria-hidden="true">✓</span> Matched
+      </span>
+
+      <div className={styles.amountGrid}>
+        <div className={styles.amountCard}>
+          <p className={styles.amountLabel}>Settlement</p>
+          <p className={styles.amountValue}>
+            {transaction.settlement
+              ? formatCurrencyAmount(transaction.currency, transaction.settlement.netAmount)
+              : '—'}
+          </p>
+          {transaction.settlement ? (
+            <p className={styles.amountDate}>{transaction.settlement.transactionDate}</p>
+          ) : null}
+        </div>
+        <div className={styles.amountCard}>
+          <p className={styles.amountLabel}>Ledger</p>
+          <p className={styles.amountValue}>
+            {transaction.ledger
+              ? formatCurrencyAmount(transaction.currency, transaction.ledger.amount)
+              : '—'}
+          </p>
+          {transaction.ledger ? (
+            <p className={styles.amountDate}>{transaction.ledger.transactionDate}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <h3 className={styles.copyLabel}>Transaction details</h3>
+      <dl className={styles.fieldList}>
+        <div className={styles.fieldRow}>
+          <dt className={styles.fieldLabel}>Transaction ID</dt>
+          <dd className={styles.fieldValue}>{transaction.transactionId}</dd>
+        </div>
+        <div className={styles.fieldRow}>
+          <dt className={styles.fieldLabel}>Currency</dt>
+          <dd className={styles.fieldValue}>{transaction.currency}</dd>
+        </div>
+      </dl>
+
+      <p className={styles.explanationText}>
+        The settlement and ledger records for this transaction match. No action needed.
+      </p>
     </div>
   );
 }
 
-function DetailPanels({
-  idBase,
-  exception,
-  activeTab,
-}: {
-  idBase: string;
-  exception: ExceptionDto;
-  activeTab: DetailTab;
-}): JSX.Element {
-  const label = EXCEPTION_LABELS[exception.reason];
+function DetailLayout({ exception }: { exception: TransactionDto }): JSX.Element {
+  const label = exception.reason === 'MATCHED' ? null : EXCEPTION_LABELS[exception.reason];
+  if (!label) return <MatchedPanel transaction={exception} />;
 
   return (
-    <>
-      <div
-        id={`${idBase}-panel-details`}
-        aria-labelledby={`${idBase}-tab-details`}
-        hidden={activeTab !== 'details'}
-        role="tabpanel"
-        tabIndex={0}
-      >
+    <div className={styles.layout}>
+      <div className={styles.detailsColumn}>
         <div className={styles.panelStack}>
           <span className={styles.reviewPill}>
             <span aria-hidden="true">●</span> Needs review
@@ -176,52 +187,51 @@ function DetailPanels({
             />
           ) : null}
 
-          <dl className={styles.fieldList}>
-            <div className={styles.fieldRow}>
-              <dt className={styles.fieldLabel}>Transaction ID</dt>
-              <dd className={styles.fieldValue}>{exception.transactionId}</dd>
-            </div>
-            <div className={styles.fieldRow}>
-              <dt className={styles.fieldLabel}>Exception type</dt>
-              <dd className={styles.fieldValue}>{label.title}</dd>
-            </div>
-            <div className={styles.fieldRow}>
-              <dt className={styles.fieldLabel}>Currency</dt>
-              <dd className={styles.fieldValue}>{exception.currency}</dd>
-            </div>
-          </dl>
+          {/* Comparison, transaction details, and description are one connected story --
+              "what's different, what is this, and why" -- grouped into a single card so they
+              read as one unit rather than three loose sections sharing a column with the amount
+              cards above. */}
+          <div className={styles.detailsCard}>
+            <ComparisonPanel exception={exception} />
 
-          <div className={styles.copyBlock}>
-            <p>{label.explanation}</p>
-            <p>Next step: {label.nextStep}</p>
+            <div>
+              <h3 className={styles.copyLabel}>Transaction details</h3>
+              <dl className={styles.fieldList}>
+                <div className={styles.fieldRow}>
+                  <dt className={styles.fieldLabel}>Transaction ID</dt>
+                  <dd className={styles.fieldValue}>{exception.transactionId}</dd>
+                </div>
+                <div className={styles.fieldRow}>
+                  <dt className={styles.fieldLabel}>Exception type</dt>
+                  <dd className={styles.fieldValue}>{label.title}</dd>
+                </div>
+                <div className={styles.fieldRow}>
+                  <dt className={styles.fieldLabel}>Currency</dt>
+                  <dd className={styles.fieldValue}>{exception.currency}</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div>
+              <h3 className={styles.copyLabel}>Description</h3>
+              <p className={styles.explanationText}>{label.explanation}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div
-        id={`${idBase}-panel-comparison`}
-        aria-labelledby={`${idBase}-tab-comparison`}
-        hidden={activeTab !== 'comparison'}
-        role="tabpanel"
-        tabIndex={0}
-      >
-        <ComparisonPanel exception={exception} />
+      <div className={styles.aiColumn}>
+        <AiExplainPanel
+          transactionId={exception.transactionId}
+          nextStepText={label.nextStep}
+          turnaroundTime={label.turnaroundTime}
+        />
       </div>
-
-      <div
-        id={`${idBase}-panel-ai`}
-        aria-labelledby={`${idBase}-tab-ai`}
-        hidden={activeTab !== 'ai'}
-        role="tabpanel"
-        tabIndex={0}
-      >
-        {activeTab === 'ai' ? <AiExplainPanel transactionId={exception.transactionId} /> : null}
-      </div>
-    </>
+    </div>
   );
 }
 
-function ComparisonPanel({ exception }: { exception: ExceptionDto }): JSX.Element {
+function ComparisonPanel({ exception }: { exception: TransactionDto }): JSX.Element {
   const { settlement, ledger, currency } = exception;
 
   return (
@@ -260,11 +270,29 @@ function ComparisonPanel({ exception }: { exception: ExceptionDto }): JSX.Elemen
   );
 }
 
-function AiExplainPanel({ transactionId }: { transactionId: string }): JSX.Element {
+function AiExplainPanel({
+  transactionId,
+  nextStepText,
+  turnaroundTime,
+}: {
+  transactionId: string;
+  nextStepText: string;
+  turnaroundTime: string;
+}): JSX.Element {
   const query = useExceptionExplanation(transactionId, true);
 
   return (
     <div className={styles.aiPanel}>
+      <div className={styles.nextStepBox}>
+        <p className={styles.nextStepHeading}>
+          <span aria-hidden="true">→</span> Next step
+        </p>
+        <p className={styles.nextStepText}>{nextStepText}</p>
+        <span className={styles.turnaroundChip}>
+          <span aria-hidden="true">⏱</span> Expected turnaround: {turnaroundTime}
+        </span>
+      </div>
+
       {query.isLoading ? <p aria-live="polite">Generating explanation...</p> : null}
 
       {query.isError ? (
@@ -285,15 +313,19 @@ function AiExplainPanel({ transactionId }: { transactionId: string }): JSX.Eleme
                 : 'Auto-generated — verify details'}
             </span>
           </div>
-          <p className={styles.aiText}>{query.data.explanationText}</p>
+          <p className={styles.aiText}>{renderFormattedExplanation(query.data.explanationText)}</p>
         </div>
       ) : null}
 
-      <div className={styles.disclaimer}>
-        <span className={styles.disclaimerLabel}>Disclaimer</span>
-        This explanation is generated automatically from the transaction data. Always verify against
-        your own records before taking action.
-      </div>
+      {/* Only makes sense once there's an AI explanation on screen to disclaim -- showing it
+          while still loading (or if generation fails) would refer to content that isn't there. */}
+      {query.data ? (
+        <p className={styles.disclaimer}>
+          <span className={styles.disclaimerLabel}>Disclaimer:</span> This explanation is generated
+          automatically from the transaction data. Always verify against your own records before
+          taking action.
+        </p>
+      ) : null}
     </div>
   );
 }

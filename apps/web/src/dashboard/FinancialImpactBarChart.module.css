@@ -1,0 +1,219 @@
+.card {
+  /* Same chart palette as ReconciliationPieChart.module.css -- the settled side reuses the brand
+     violet (the "known/recorded" amount), the pending side reuses the chart amber (the side still
+     open/unreconciled), so the two widgets read as one consistent color language. */
+  --chart-settlement: #7c5cd4;
+  --chart-pending: #fbbf24;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  animation: fadeInUp var(--transition-slow);
+  /* Column layout so `.chart` (flex: 1 below) can grow to fill any extra height the widgets row's
+     grid gives this card beyond its own content, and center that content vertically within it --
+     same treatment as ReconciliationPieChart/ExceptionsByReasonChart's `.card`/`.body`. */
+  display: flex;
+  flex-direction: column;
+  /* See ExceptionsByReasonChart.module.css's identical property -- `.callout`'s fallback below
+     needs to know this card's own width, not the viewport's. */
+  container-type: inline-size;
+}
+
+.heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+}
+
+.status {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.chart {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  /* Wider than before (was 14px) -- each row is now taller, with its two callout labels sitting
+     above the bar (`.barWrap`'s own top padding) instead of a same-height side list. */
+  gap: 22px;
+  justify-content: center;
+}
+
+.rowGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  /* end, not center: `.barWrap` is taller than the currency code now (it reserves top padding for
+     the callout labels), so aligning to the bottom keeps the code sitting next to the bar itself
+     instead of floating in the empty space above it. */
+  align-items: end;
+  gap: 12px;
+}
+
+/* Flags a currency whose only open exceptions have no dollar figure to show (duplicate entries,
+   date/currency mismatches) -- without this, a currency like that would show "Yet to receive:
+   0.00" and read as fully reconciled, even though there's a real exception still needing a look
+   in the table below. Same amber family as ExceptionDetailPanel.module.css's `.reviewPill` so it
+   reads as the same "needs review" signal used elsewhere, not a new one-off color. */
+.reviewBadge {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-attention-text);
+  background: var(--color-attention-bg);
+  border: 1px solid var(--color-attention-border);
+  border-radius: var(--radius-full);
+}
+
+.currencyLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+/* Reserves room above the bar for the two callout labels (`.callout`) -- `position: relative` so
+   they can be placed with `left: <percent>%` against the bar's own width, the same percentages
+   that size `.barFillSettlement`/`.barFillPending` below, so a label always sits over the segment
+   it names. */
+.barWrap {
+  position: relative;
+  width: 100%;
+  padding-top: 20px;
+}
+
+.barTrack {
+  display: flex;
+  height: 14px;
+  width: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.callout {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calloutSettled {
+  color: var(--chart-settlement);
+}
+
+.calloutPending {
+  color: var(--chart-pending);
+}
+
+.barFillSettlement,
+.barFillPending {
+  height: 100%;
+  transition: width var(--transition-slow);
+  animation: growIn var(--transition-slow) both;
+}
+
+.barFillSettlement {
+  background: var(--chart-settlement);
+  border-radius: var(--radius-full) 0 0 var(--radius-full);
+}
+
+.barFillPending {
+  background: var(--chart-pending);
+}
+
+@keyframes growIn {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+.legend {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.legendDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.legendDot[data-series='settlement'] {
+  background: var(--chart-settlement);
+}
+
+.legendDot[data-series='pending'] {
+  background: var(--chart-pending);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .barFillSettlement,
+  .barFillPending {
+    animation: none;
+  }
+}
+
+/* The two callouts are centered over their own segment by percentage (`left: <pct>%`,
+   FinancialImpactBarChart.tsx), clamped so neither runs off the card's edge -- but that clamp is
+   in percentage points, while each label's actual rendered width is a fixed number of pixels. On
+   a wide card that's a comfortable gap; once this card gets narrow enough (three columns sharing
+   a compacted 70% chat-open layout, a 14" laptop, tablet width...) the same percentage gap stops
+   being enough real pixels and the two labels start overlapping each other. Below this width,
+   drop the absolute-percentage positioning entirely in favor of two plain inline badges that flow
+   before the bar (wrapping onto their own line if needed, like any other inline content) -- normal
+   flow can't overlap regardless of how wide either label's text turns out to be. */
+@container (max-width: 340px) {
+  .barWrap {
+    padding-top: 0;
+  }
+
+  .callout {
+    position: static;
+    transform: none;
+    display: inline-flex;
+    margin: 0 12px 6px 0;
+  }
+}

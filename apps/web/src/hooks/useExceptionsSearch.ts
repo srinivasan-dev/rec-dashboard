@@ -14,5 +14,9 @@ export function useExceptionsSearch(query: string | null): UseQueryResult<Search
     queryKey: ['reconciliation', 'search', query],
     queryFn: () => searchExceptions(query!),
     enabled: !!query,
+    // Same reasoning as useSearchExplanation's staleTime -- a given query's match set won't
+    // change mid-session, so there's no reason for a remount (another observer for the same
+    // queryKey, including React 18 StrictMode's dev-only double-mount) to refetch it.
+    staleTime: Infinity,
   });
 }

@@ -53,7 +53,12 @@ export function FilterMenu({ reason, onChange }: FilterMenuProps): JSX.Element {
           <div className={popover.panelHeading}>
             <label htmlFor="exceptions-reason-filter">Reason</label>
           </div>
-          <select id="exceptions-reason-filter" value={reason ?? ''} onChange={handleChange}>
+          <select
+            id="exceptions-reason-filter"
+            className={popover.select}
+            value={reason ?? ''}
+            onChange={handleChange}
+          >
             <option value="">All types</option>
             {REASONS.map((value) => (
               <option key={value} value={value}>

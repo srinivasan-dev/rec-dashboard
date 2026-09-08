@@ -1,6 +1,8 @@
 .toolbar {
   display: flex;
   align-items: center;
+  /* Expand/collapse controls on the left, search + filter + export on the right -- one merged
+     row instead of the two separate ones this used to be split across. */
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
@@ -11,4 +13,32 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.showMatchedLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.showMatchedLabel input {
+  accent-color: var(--color-brand);
+}
+
+/* breakpoint: mobile, see tokens.css breakpoints block -- two clear rows instead of squeezing
+   the date range control and the icon group into one wrapped, cramped row. */
+@media (max-width: 599px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .iconGroup {
+    justify-content: space-between;
+  }
 }

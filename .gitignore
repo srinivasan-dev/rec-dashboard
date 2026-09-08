@@ -8,3 +8,8 @@ coverage/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# Playwright run artifacts -- generated fresh by every e2e run, never source.
+test-results/
+playwright-report/
+apps/web/e2e/__screenshots__/

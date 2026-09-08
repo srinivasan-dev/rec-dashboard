@@ -6,35 +6,68 @@
   animation: fadeIn var(--transition-base);
 }
 
-.tablist {
-  display: flex;
-  gap: 20px;
-  border-bottom: 1px solid var(--color-border);
+/* Details on the left, AI Explain always visible on the right -- replaces the old three-tab
+   layout (Details / Settlement vs. Ledger / AI Explain) so everything is readable at once instead
+   of gated behind clicks. Both columns are fluid fractions of the panel's actual width (not a
+   fixed px column) so the layout uses whatever space the viewport gives it instead of leaving a
+   wide gutter on large screens; below tablet-landscape they stack instead (see the breakpoint
+   below). */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 32px;
+  align-items: start;
 }
 
-.tab {
-  background: none;
-  border: none;
-  padding: 0 0 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  border-bottom: 2px solid transparent;
-  transition: color var(--transition-fast);
+.detailsColumn,
+.aiColumn {
+  min-width: 0;
 }
 
-.tab:hover {
-  color: var(--color-text);
+/* A visible seam between the two sections -- otherwise, at a glance, the AI column reads as just
+   another block continuing the details rather than a clearly separate section. Dropped on mobile/
+   tablet-portrait (see the breakpoints below) once the columns stack, where a full-width divider
+   would just read as a stray horizontal line above the AI section. */
+.aiColumn {
+  padding-left: 20px;
+  border-left: 1px solid var(--color-border);
 }
 
-.tab[aria-selected='true'] {
-  color: var(--color-brand);
-  font-weight: 600;
-  border-bottom-color: var(--color-brand);
+/* breakpoint: mobile, see tokens.css breakpoints block -- this panel stays deliberately
+   non-modal (no focus trap -- see the component's own docstring), but on a phone it should still
+   read as the prominent, full-attention view the product spec calls "full-screen": edge-to-edge
+   padding and a single stacked column instead of a cramped two-up grid. */
+@media (max-width: 599px) {
+  .panel {
+    padding: 16px;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .amountGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.body {
-  padding-top: 16px;
+/* breakpoint: tablet-portrait -- still not enough width for a 400px-wide AI column beside the
+   details without squeezing both, so it drops to a stacked layout here too (AI Explain below the
+   details, same as mobile) rather than only at the phone breakpoint. */
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .aiColumn {
+    padding-left: 0;
+    border-left: none;
+    /* Stacked below the details instead of beside them -- a top border reads as "new section
+       starts here" the way the left border did when they sat side by side. */
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
+  }
 }
 
 .panelStack {
@@ -56,11 +89,40 @@
   color: var(--color-attention-text);
 }
 
+/* Same shape as `.reviewPill`, green instead of amber -- a matched transaction isn't something
+   needing review, so it shouldn't share that visual language. */
+.matchedPill {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-positive-bg);
+  color: var(--color-positive-text);
+}
+
 .amountGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  max-width: 480px;
+}
+
+/* Groups the comparison table, transaction details, and description into one visual unit --
+   otherwise they read as three loose sections stacked in the same column as the amount cards
+   above, with no cue that they belong together as "the full story" on this exception. Each
+   sub-section keeps its own `.copyLabel` heading; the card's own `gap` gives them even breathing
+   room without needing a separate divider between every pair. */
+.detailsCard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: var(--color-surface);
 }
 
 .amountCard {
@@ -96,7 +158,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 480px;
   padding: 12px 14px;
   border-radius: var(--radius-md);
   background: var(--color-error-bg);
@@ -118,7 +179,6 @@
 .fieldList {
   display: flex;
   flex-direction: column;
-  max-width: 480px;
 }
 
 .fieldRow {
@@ -143,15 +203,55 @@
   color: var(--color-text);
 }
 
-.copyBlock {
-  max-width: 560px;
+.explanationText {
   font-size: 13px;
   line-height: 1.6;
   color: var(--color-text);
 }
 
-.copyBlock p + p {
-  margin-top: 8px;
+/* Distinct from the AI panel's amber `.disclaimer` and the red `.differenceBox` -- blue reads as
+   "here's what to do", not a warning, matching --color-info-*'s existing use for calm/informational
+   copy elsewhere in the app (docs/product-spec.md §9's "calm, not alarming" language rule applies
+   to this box too). */
+.nextStepBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+}
+
+.nextStepHeading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-info-text);
+}
+
+.nextStepText {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.turnaroundChip {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-info-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-full);
 }
 
 .copyLabel {
@@ -160,7 +260,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 12px;
 }
 
 .duplicateList {
@@ -172,15 +272,15 @@
 
 .comparisonTable {
   width: 100%;
-  max-width: 560px;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
+  margin-bottom: 20px;
 }
 
 .comparisonTable th {
   text-align: left;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--color-text-muted);
@@ -189,7 +289,7 @@
 }
 
 .comparisonTable td {
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--color-border);
   font-variant-numeric: tabular-nums;
 }
@@ -203,7 +303,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 560px;
 }
 
 .aiBox {
@@ -243,6 +342,7 @@
 }
 
 .disclaimer {
+  margin: 0;
   border-radius: var(--radius-md);
   background: var(--color-attention-bg);
   border: 1px solid var(--color-attention-border);
@@ -254,6 +354,4 @@
 
 .disclaimerLabel {
   font-weight: 600;
-  display: block;
-  margin-bottom: 2px;
 }

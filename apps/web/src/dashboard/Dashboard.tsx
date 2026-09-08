@@ -1,19 +1,27 @@
+import { useCallback, useMemo } from 'react';
+
+import type { SortBy } from '../api/types';
 import { useExceptionsFilters } from '../hooks/useExceptionsFilters';
-import { useExceptionsSearch } from '../hooks/useExceptionsSearch';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { useReconciliationExceptions } from '../hooks/useReconciliationExceptions';
 import { useReconciliationSummary } from '../hooks/useReconciliationSummary';
-import { GlobalSearchBar } from '../layout/GlobalSearchBar';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { searchCleared } from '../store/uiSlice';
+import { useReconciliationTransactions } from '../hooks/useReconciliationTransactions';
+import { useAppSelector } from '../store/hooks';
 import buttons from '../styles/buttons.module.css';
+import { ChartErrorBoundary } from './ChartErrorBoundary';
 import styles from './Dashboard.module.css';
-import { ExceptionBreakdown } from './ExceptionBreakdown';
 import { ExceptionsTable } from './ExceptionsTable';
+import { ExceptionsByReasonChart } from './ExceptionsByReasonChart';
 import { ExportMenu } from './ExportMenu';
+import { FinancialImpactBarChart } from './FinancialImpactBarChart';
+import { ReconciliationPieChart } from './ReconciliationPieChart';
 import { SearchChatPanel } from './SearchChatPanel';
-import { StatusBanner } from './StatusBanner';
-import { SummaryCards } from './SummaryCards';
+import { SearchHero } from './SearchHero';
+// import { SummaryCards } from './SummaryCards'; -- temporarily swapped for the D3 widget row
+// (ReconciliationPieChart / FinancialImpactBarChart / ExceptionsByReasonChart) below; remove this
+// comment and the import above once decided.
 import { Toolbar } from './Toolbar';
+import toolbarStyles from './Toolbar.module.css';
 
 /**
  * Composes the four UX states from docs/product-spec.md §8. The summary query drives the
@@ -22,41 +30,85 @@ import { Toolbar } from './Toolbar';
  * for just the table region, independent of the page shell. This split means a filter change
  * only re-renders the table's own loading state, not the whole page.
  *
- * A submitted global search (AppShell's GlobalSearchBar) takes over the exceptions region
- * entirely -- see docs/sessions/2026-09-08-epic17-search-and-inline-detail.md. Search results
- * come from one query (`useExceptionsSearch`) shared with the search drawer, so the table and the
- * drawer can never show different results for the same query.
+ * A submitted global search (SearchHero's GlobalSearchBar, or a SuggestedPrompts chip) and the
+ * AI chat drawer (SearchChatPanel) run entirely on their own query (`useExceptionsSearch`) --
+ * this main table always shows `useReconciliationExceptions`'s filter-driven results from the
+ * API, regardless of what's been searched or discussed in the chat. The two surfaces intentionally
+ * never share state: searching or chatting must never change what the table displays.
  */
 export function Dashboard(): JSX.Element {
   const [filters, updateFilters] = useExceptionsFilters();
-  const summaryQuery = useReconciliationSummary();
-  const dispatch = useAppDispatch();
-  const searchQuery = useAppSelector((state) => state.ui.search.query);
+  // The date-range picker lives in SearchHero (right of the status banner) now, but its from/to
+  // are still just `filters.from`/`filters.to` -- one URL-persisted range shared by the summary
+  // (and, through it, every chart widget below), the currency-totals widget, and the table.
+  // Memoized so `useReconciliationSummary`/`useCurrencyTotals`/DateRangePicker see the same object
+  // reference across renders that don't actually change from/to, not a new literal every time.
+  const dateRange = useMemo(
+    () => ({ from: filters.from, to: filters.to }),
+    [filters.from, filters.to],
+  );
+  const summaryQuery = useReconciliationSummary(dateRange);
 
   const hasExceptions = (summaryQuery.data?.exceptionCount ?? 0) > 0;
-  const exceptionsQuery = useReconciliationExceptions(filters, hasExceptions && !searchQuery);
-  const searchResultsQuery = useExceptionsSearch(searchQuery);
+  const hasMatched = (summaryQuery.data?.matchedCount ?? 0) > 0;
+  // Toolbar.tsx's "Show matched transactions" checkbox -- unchecked (default) is today's
+  // exceptions-only table; checked additionally includes every matched transaction, via a
+  // separate endpoint/query (GET /transactions) rather than widening GET /exceptions, so the
+  // default path's query shape and caching are unaffected by this feature.
+  const showMatched = filters.showMatched ?? false;
+  // The table section renders whenever there's something for the *current* toggle to show --
+  // with matched transactions included, an account with zero exceptions but real matched
+  // transactions should still get a table, not the all-clear state.
+  const showTableSection = hasExceptions || (showMatched && hasMatched);
+  const exceptionsQuery = useReconciliationExceptions(filters, showTableSection && !showMatched);
+  const transactionsQuery = useReconciliationTransactions(filters, showTableSection && showMatched);
+  const tableQuery = showMatched ? transactionsQuery : exceptionsQuery;
+  // `isFetching` covers a background refetch of an already-cached filter combination (e.g.
+  // clearing the transaction-id search back to one seen earlier), not just a first-time fetch --
+  // see the table section's own comment below for why that distinction matters here.
+  const isTableBusy = tableQuery.isLoading || tableQuery.isFetching;
   const chatOpen = useAppSelector((state) => state.ui.search.drawerOpen);
+  const isMobile = useIsMobile();
 
-  function handleRefresh(): void {
+  const handleRefresh = useCallback(() => {
     void summaryQuery.refetch();
-    void exceptionsQuery.refetch();
-  }
+    void tableQuery.refetch();
+  }, [summaryQuery, tableQuery]);
+
+  // Toggles sort direction when the same column is clicked again, otherwise starts ascending on
+  // the new one.
+  const handleSortChange = useCallback(
+    (sortBy: SortBy) => {
+      updateFilters({
+        sortBy,
+        sortOrder: filters.sortBy === sortBy && filters.sortOrder === 'asc' ? 'desc' : 'asc',
+      });
+    },
+    [updateFilters, filters.sortBy, filters.sortOrder],
+  );
+
+  const handlePageChange = useCallback((page: number) => updateFilters({ page }), [updateFilters]);
+  const handlePageSizeChange = useCallback(
+    (pageSize: number) => updateFilters({ pageSize }),
+    [updateFilters],
+  );
 
   return (
     <div className={styles.splitLayout}>
-      <main className={`${styles.page} ${chatOpen ? styles.pageCompact : ''}`}>
-        <header className={styles.header}>
-          <div>
-            <h1 className={styles.title}>Settlement Reconciliation</h1>
-            {summaryQuery.data ? (
-              <p className={styles.subtitle}>Merchant {summaryQuery.data.merchantId}</p>
-            ) : null}
+      <main
+        className={`${styles.page} ${chatOpen ? styles.pageCompact : styles.pageScrollbarHidden}`}
+      >
+        {/* Mobile only (Dashboard.module.css) -- docs/product-spec.md §11 calls out that export
+            stays reachable near the top of the page, since the toolbar/all-clear section below
+            can scroll out of view once summary cards and breakdown pills stack on a phone. Hidden
+            everywhere else, where Toolbar already shows its own copy. Only shown once the table
+            itself is actually visible -- there's nothing to export while it's loading, errored,
+            or (all-clear) not shown at all. */}
+        {isMobile && showTableSection && tableQuery.data ? (
+          <div className={styles.mobileExportRow}>
+            <ExportMenu filters={filters} />
           </div>
-          <div className={styles.headerSearch}>
-            <GlobalSearchBar />
-          </div>
-        </header>
+        ) : null}
 
         {summaryQuery.isLoading ? (
           <div className={styles.section} aria-live="polite">
@@ -99,97 +151,49 @@ export function Dashboard(): JSX.Element {
         {summaryQuery.data ? (
           <>
             <h2 className="visually-hidden">Summary</h2>
-            <StatusBanner
-              totalChecked={summaryQuery.data.totalChecked}
-              matchedCount={summaryQuery.data.matchedCount}
-              exceptionCount={summaryQuery.data.exceptionCount}
+            <SearchHero
+              summary={summaryQuery.data}
+              filters={filters}
+              onFiltersChange={updateFilters}
+              onRefresh={handleRefresh}
+              isRefreshing={summaryQuery.isFetching || tableQuery.isFetching}
             />
-            <SummaryCards summary={summaryQuery.data} />
+            <div className={styles.widgetsRow}>
+              <ChartErrorBoundary label="Matched vs. exceptions">
+                <ReconciliationPieChart summary={summaryQuery.data} />
+              </ChartErrorBoundary>
+              <ChartErrorBoundary label="Financial impact by currency">
+                <FinancialImpactBarChart dateRange={dateRange} summary={summaryQuery.data} />
+              </ChartErrorBoundary>
+              <ChartErrorBoundary label="Exceptions by reason">
+                <ExceptionsByReasonChart summary={summaryQuery.data} />
+              </ChartErrorBoundary>
+            </div>
 
-            {searchQuery ? (
+            {showTableSection ? (
               <div className={styles.section}>
-                <div className={styles.searchModeBar}>
-                  {searchResultsQuery.data ? (
-                    <p className={styles.searchModeSummary}>
-                      {searchResultsQuery.data.matchType === 'intent' ? (
-                        <>
-                          No exact match for &ldquo;{searchQuery}&rdquo; — showing all{' '}
-                          {searchResultsQuery.data.data.length} exceptions (see the AI summary for
-                          what&apos;s likely relevant)
-                        </>
-                      ) : (
-                        <>
-                          {searchResultsQuery.data.data.length}{' '}
-                          {searchResultsQuery.data.data.length === 1 ? 'result' : 'results'} for
-                          &ldquo;{searchQuery}&rdquo;
-                        </>
-                      )}
-                    </p>
-                  ) : (
-                    <p className={styles.searchModeSummary} aria-live="polite">
-                      Searching for &ldquo;{searchQuery}&rdquo;...
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    className={buttons.secondary}
-                    onClick={() => dispatch(searchCleared())}
-                  >
-                    Clear search
-                  </button>
-                </div>
-
-                {searchResultsQuery.isError ? (
-                  <div className={styles.tableError} role="alert">
-                    <p>We couldn&apos;t search your exceptions right now.</p>
-                    <button
-                      type="button"
-                      className={buttons.secondary}
-                      onClick={() => searchResultsQuery.refetch()}
-                    >
-                      Retry
-                    </button>
-                  </div>
-                ) : null}
-
-                {searchResultsQuery.data ? (
-                  <ExceptionsTable
-                    exceptions={searchResultsQuery.data.data}
-                    sortBy={filters.sortBy}
-                    sortOrder={filters.sortOrder}
-                    onSortChange={(sortBy) =>
-                      updateFilters({
-                        sortBy,
-                        sortOrder:
-                          filters.sortBy === sortBy && filters.sortOrder === 'asc' ? 'desc' : 'asc',
-                      })
-                    }
-                    // Only highlight for a real keyword match -- in 'intent' mode nothing in the
-                    // (unfiltered) rows actually contains the query text, so highlighting would
-                    // either do nothing or, worse, coincidentally highlight an unrelated substring.
-                    searchQuery={
-                      searchResultsQuery.data.matchType === 'literal' ? searchQuery : null
-                    }
-                  />
-                ) : null}
-              </div>
-            ) : hasExceptions ? (
-              <div className={styles.section}>
-                <ExceptionBreakdown
-                  exceptionsByReason={summaryQuery.data.exceptionsByReason}
-                  totalExceptionCount={summaryQuery.data.exceptionCount}
-                  selectedReason={filters.reason}
-                  onSelect={(reason) => updateFilters({ reason })}
-                />
+                {/* ExceptionBreakdown (the "All / reason" filter pill row -- also a reason-filter
+                    shortcut for Toolbar's own filter) is hidden for now; ExceptionsByReasonChart
+                    in the widget row above already shows this breakdown visually. Reason filtering
+                    itself still works via Toolbar's FilterMenu. */}
 
                 <Toolbar
                   filters={filters}
                   onChange={updateFilters}
-                  onRefresh={handleRefresh}
-                  isRefreshing={summaryQuery.isFetching || exceptionsQuery.isFetching}
+                  exceptions={tableQuery.data?.data ?? []}
+                  showExport={!!tableQuery.data}
                 />
 
-                {exceptionsQuery.isLoading ? (
+                {/* `isFetching` (not just `isLoading`) so the loader also covers a background
+                    refetch of an already-cached filter combination -- e.g. clearing the
+                    transaction-id search back to a filter seen earlier in this session, which
+                    TanStack Query serves from cache instantly (`isLoading` false) while quietly
+                    revalidating in the background. Without this, that specific transition swapped
+                    straight to the (possibly stale) cached rows with no loading feedback at all,
+                    while every *new* filter value correctly showed the skeleton below. Gating the
+                    error/data blocks on `!isTableBusy` too keeps exactly one of skeleton/error/
+                    table visible at a time instead of two overlapping mid-transition. */}
+                {isTableBusy ? (
                   <div className={styles.skeletonTable} aria-live="polite">
                     <p className={styles.infoBanner}>
                       <span aria-hidden="true">ⓘ</span> Loading exceptions...
@@ -204,44 +208,47 @@ export function Dashboard(): JSX.Element {
                   </div>
                 ) : null}
 
-                {exceptionsQuery.isError ? (
+                {!isTableBusy && tableQuery.isError ? (
                   <div className={styles.tableError} role="alert">
                     <p>We couldn&apos;t load the exceptions table right now.</p>
                     <button
                       type="button"
                       className={buttons.secondary}
-                      onClick={() => exceptionsQuery.refetch()}
+                      onClick={() => tableQuery.refetch()}
                     >
                       Retry
                     </button>
                   </div>
                 ) : null}
 
-                {exceptionsQuery.data ? (
+                {!isTableBusy && tableQuery.data ? (
                   <ExceptionsTable
-                    exceptions={exceptionsQuery.data.data}
+                    exceptions={tableQuery.data.data}
                     sortBy={filters.sortBy}
                     sortOrder={filters.sortOrder}
-                    pagination={exceptionsQuery.data.pagination}
-                    onSortChange={(sortBy) =>
-                      updateFilters({
-                        sortBy,
-                        sortOrder:
-                          filters.sortBy === sortBy && filters.sortOrder === 'asc' ? 'desc' : 'asc',
-                      })
-                    }
-                    onPageChange={(page) => updateFilters({ page })}
+                    pagination={tableQuery.data.pagination}
+                    onSortChange={handleSortChange}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={handlePageSizeChange}
                   />
                 ) : null}
               </div>
-            ) : (
-              // All-clear state has no table (and no reason/sort to offer), but export must stay
-              // available for record-keeping (docs/product-spec.md §8) -- keep it right-aligned in
-              // the same spot the table toolbar would occupy.
+            ) : hasMatched ? (
+              // All-clear state has no table to export, so no export button here -- just the
+              // "show matched transactions" checkbox (left-aligned, matching Toolbar.tsx's own
+              // placement), so a merchant with zero exceptions but real matched transactions can
+              // still reach it, since Toolbar itself only renders once `showTableSection` is true.
               <div className={styles.tableToolbar}>
-                <ExportMenu filters={filters} />
+                <label className={toolbarStyles.showMatchedLabel}>
+                  <input
+                    type="checkbox"
+                    checked={showMatched}
+                    onChange={(event) => updateFilters({ showMatched: event.target.checked })}
+                  />
+                  Show all transactions
+                </label>
               </div>
-            )}
+            ) : null}
           </>
         ) : null}
       </main>

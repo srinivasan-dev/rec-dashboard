@@ -1,0 +1,45 @@
+/* Fixed to the true viewport top (not `.shell`'s own topbar) so it reads as one consistent signal
+   regardless of which route/page is showing -- above the mobile sidebar drawer's z-index:20
+   (AppShell.module.css) and everything else in the app. */
+.track {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  height: 3px;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+.bar {
+  height: 100%;
+  width: 40%;
+  background: var(--color-brand);
+  border-radius: var(--radius-full);
+  animation: slide 1.1s var(--ease-in-out) infinite;
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  60% {
+    transform: translateX(150%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation: none;
+    /* Still visibly present (not moving) rather than motionless-but-invisible -- the ambient
+       "something is loading" signal shouldn't disappear entirely for reduced-motion users, it
+       just stops sliding. */
+    width: 100%;
+    transform: none;
+  }
+}

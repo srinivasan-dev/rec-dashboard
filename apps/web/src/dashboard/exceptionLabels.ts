@@ -1,4 +1,4 @@
-import type { ExceptionReason } from '../api/types';
+import type { ExceptionReason, TransactionDto } from '../api/types';
 
 export interface ExceptionLabel {
   title: string;
@@ -7,10 +7,18 @@ export interface ExceptionLabel {
   /**
    * Purely a visual grouping (docs/design/...Final Design.html's amber-vs-gray reason pills):
    * 'amount' for reasons where money is unaccounted for or doesn't match, 'structural' for
-   * reasons that are about the record itself (a duplicate, a date) rather than the amount.
-   * Never used for reconciliation logic -- that's entirely packages/shared's job.
+   * reasons that are about the record itself (a duplicate, a date) rather than the amount,
+   * 'matched' for a transaction that isn't an exception at all (see `MATCHED_LABEL`). Never used
+   * for reconciliation logic -- that's entirely packages/shared's job.
    */
-  severity: 'amount' | 'structural';
+  severity: 'amount' | 'structural' | 'matched';
+  /**
+   * A rough, merchant-facing expectation for how long following `nextStep` typically takes to
+   * resolve -- an estimate to set expectations, not a contractual SLA (there's no backend
+   * turnaround-tracking to back a real one yet). Deliberately a range in business days, matching
+   * how support/ops teams already communicate timelines elsewhere in fintech.
+   */
+  turnaroundTime: string;
 }
 
 /**
@@ -31,6 +39,7 @@ export const EXCEPTION_LABELS: Record<ExceptionReason, ExceptionLabel> = {
     nextStep:
       'Review whether this transaction was processed. If expected, contact support with this transaction ID.',
     severity: 'amount',
+    turnaroundTime: '2-3 business days',
   },
   MISSING_SETTLEMENT: {
     title: 'No matching settlement',
@@ -39,6 +48,7 @@ export const EXCEPTION_LABELS: Record<ExceptionReason, ExceptionLabel> = {
     nextStep:
       'This may indicate a pending settlement. If the transaction is older than your typical settlement cycle, contact support.',
     severity: 'amount',
+    turnaroundTime: '3-5 business days',
   },
   DUPLICATE_LEDGER: {
     title: 'Duplicate entry',
@@ -46,6 +56,7 @@ export const EXCEPTION_LABELS: Record<ExceptionReason, ExceptionLabel> = {
     nextStep:
       'Review whether the transaction was accidentally recorded twice. Contact support if you need the duplicate removed.',
     severity: 'structural',
+    turnaroundTime: '1-2 business days',
   },
   AMOUNT_MISMATCH: {
     title: "Amount doesn't match",
@@ -53,6 +64,7 @@ export const EXCEPTION_LABELS: Record<ExceptionReason, ExceptionLabel> = {
     nextStep:
       'Compare the settlement and ledger amounts shown. Contact support with this transaction ID if you need the difference investigated.',
     severity: 'amount',
+    turnaroundTime: '3-5 business days',
   },
   DATE_MISMATCH: {
     title: 'Date discrepancy',
@@ -60,6 +72,7 @@ export const EXCEPTION_LABELS: Record<ExceptionReason, ExceptionLabel> = {
     nextStep:
       'Small date differences can occur due to processing timing. If the dates are significantly different, contact support.',
     severity: 'structural',
+    turnaroundTime: '1-2 business days',
   },
   CURRENCY_MISMATCH: {
     title: "Currency doesn't match",
@@ -68,5 +81,29 @@ export const EXCEPTION_LABELS: Record<ExceptionReason, ExceptionLabel> = {
     nextStep:
       'Compare the settlement and ledger currencies shown. Contact support with this transaction ID if you need this investigated.',
     severity: 'amount',
+    turnaroundTime: '3-5 business days',
   },
 };
+
+/**
+ * Not a real exception -- the label used for a matched transaction (`TransactionDto.reason ===
+ * 'MATCHED'`) wherever a row needs *some* label object, e.g. the table's reason pill. `explanation`/
+ * `nextStep`/`turnaroundTime` are never actually read for a matched row (ExceptionDetailPanel.tsx
+ * shows its own simple confirmation panel instead of the full exception detail layout), so these
+ * are just honest placeholders keeping this a complete `ExceptionLabel`, not `undefined`/`any`.
+ */
+export const MATCHED_LABEL: ExceptionLabel = {
+  title: 'Matched',
+  explanation: 'This transaction was automatically matched between the settlement and the ledger.',
+  nextStep: 'No action needed.',
+  severity: 'matched',
+  turnaroundTime: 'N/A',
+};
+
+/** Resolves a table row's reason pill/label regardless of whether it's a real exception or a
+ *  matched transaction -- the one place that needs to know both `EXCEPTION_LABELS` and
+ *  `MATCHED_LABEL` exist, so callers (ExceptionsTable.tsx, ExceptionCard.tsx, ...) never have to
+ *  branch on `reason === 'MATCHED'` themselves. */
+export function reasonLabelFor(reason: TransactionDto['reason']): ExceptionLabel {
+  return reason === 'MATCHED' ? MATCHED_LABEL : EXCEPTION_LABELS[reason];
+}

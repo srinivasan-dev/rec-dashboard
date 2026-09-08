@@ -10,11 +10,17 @@
   min-width: 0;
   overflow: hidden;
   opacity: 0;
-  align-self: stretch;
+  /* flex-start (not stretch) so the panel's own height (fixed via `.inner`'s calc below) governs
+     it, rather than stretching to match whatever the main column's content height happens to be
+     (widget cards, table, etc.) -- that's what let `.body` grow instead of scrolling internally.
+     `.content` (AppShell.module.css) no longer scrolls at all -- both this drawer and the main
+     column (Dashboard.module.css's `.page`) size themselves to the viewport and scroll
+     independently side by side -- so this no longer needs `position: sticky` to stay in place. */
+  align-self: flex-start;
   transition:
     flex-basis var(--transition-slow),
     max-width var(--transition-slow),
-    opacity var(--transition-base);
+    opacity var(--transition-slow);
 }
 
 .panelOpen {
@@ -26,14 +32,74 @@
 .inner {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 520px;
-  width: max(320px, 100%);
+  /* Bounded to the viewport (topbar height + `.content`'s own top/bottom padding, both shared
+     tokens -- not a hardcoded figure), not to sibling content -- this is what makes `.body` below
+     a genuine internally-scrolling region instead of growing the whole page. Dashboard.module.css's
+     `.page` uses this exact same formula for the main column beside it. */
+  height: calc(100vh - var(--topbar-height) - (var(--content-padding-y) * 2));
+  /* Was `max(320px, 100%)` -- forcing a 320px floor made `.inner` wider than its actual
+     flex-allocated 30% column at typical viewport widths (e.g. tablet-landscape, ~1024-1279px,
+     where 30% of the main content area is well under 320px), overflowing past the panel's right
+     edge instead of being clipped by it. `width: 100%` always matches whatever `.panel`'s
+     flex-basis/max-width above actually gave it. */
+  /* The 16px left gap (between the main column and the drawer) has to come out of this width, not
+     be added on top of it -- `.panel` clips overflow, so a plain `margin-left` here would just
+     shave the same 16px off the *right* edge instead, undoing the gap it was meant to add. */
+  width: calc(100% - 16px);
   margin-left: 16px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-drawer);
+  /* A slide-in-from-the-right + fade on top of `.panel`'s own width/opacity animation above --
+     two compounding motions read as a smoother, more deliberate "open" than a pure width tween,
+     which visibly reflows the panel's own content as it grows. */
+  opacity: 0;
+  transform: translateX(24px);
+  transition:
+    opacity var(--transition-slow),
+    transform var(--transition-slow);
+}
+
+.panelOpen .inner {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* breakpoint: tablet-portrait and below, see tokens.css breakpoints block -- below this width the
+   30%-column + 320px-min-width combination would force horizontal overflow rather than shrink
+   sensibly, so the chat becomes a genuine full-screen overlay instead (it already behaves like a
+   drawer with its own header/close button, unlike ExceptionDetailPanel's deliberately inline,
+   non-modal design -- this is the one surface where a real overlay is the right call). Desktop
+   and tablet-landscape (1024px+) keep the 30% column unchanged. */
+@media (max-width: 1023px) {
+  .panel {
+    position: fixed;
+    inset: var(--topbar-height) 0 0 0;
+    z-index: 25;
+    flex: none;
+    max-width: none;
+    /* Closed state still occupies the full viewport rect (position:fixed, opacity:0) purely so
+       the open/close opacity transition has something to animate -- without this it would also
+       intercept clicks over the dashboard behind it while "invisible." */
+    pointer-events: none;
+  }
+
+  .panelOpen {
+    flex-basis: auto;
+    max-width: none;
+    pointer-events: auto;
+  }
+
+  .inner {
+    width: 100%;
+    height: 100%;
+    margin-left: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
 }
 
 .header {
@@ -81,11 +147,59 @@
 
 .body {
   flex: 1;
+  /* Flex items default to `min-height: auto` -- without this override, `.body` refuses to shrink
+     below its own content's intrinsic height inside `.inner`'s fixed-height column, so a long
+     transcript overflows the panel instead of scrolling inside it. This is what makes
+     `overflow-y: auto` below actually take effect. */
+  min-height: 0;
   overflow-y: auto;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Slim, low-key scrollbar that only becomes visible on hover/focus-within (see below) rather
+     than sitting there permanently -- Firefox via `scrollbar-*`, Chrome/Safari/Edge via the
+     `::-webkit-scrollbar-*` pseudo-elements underneath. */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.body:hover,
+.body:focus-within {
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+.body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.body::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
+}
+
+.body:hover::-webkit-scrollbar-thumb,
+.body:focus-within::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+}
+
+.body::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand);
+}
+
+/* Bottom-anchors turns without `justify-content: flex-end` on `.body` itself -- flex-end/center
+   alignment on an overflowing scroll container is "unsafe" alignment per the CSS box-alignment
+   spec, meaning browsers aren't required to keep the content pushed past the start edge
+   reachable by scrolling at all (this is what broke `.body`'s scroll entirely, not just the
+   anchoring). `margin-top: auto` on the first child achieves the same "sits at the bottom when
+   short" look while leaving normal (safe) start-aligned scroll behavior intact. */
+.body > :first-child {
+  margin-top: auto;
 }
 
 .empty {
@@ -160,8 +274,39 @@
 .thinking {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 4px 0;
+}
+
+.thinkingLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.typingCursor {
+  display: inline-block;
+  width: 2px;
+  height: 13px;
+  margin-left: 1px;
+  background: var(--color-brand);
+  vertical-align: -2px;
+  animation: cursorBlink 0.8s step-end infinite;
+}
+
+@keyframes cursorBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typingCursor {
+    display: none;
+  }
 }
 
 .dot {
@@ -200,45 +345,121 @@
   }
 }
 
-.resultList {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.resultItem {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 10px;
-  width: 100%;
-  padding: 10px 12px;
-  text-align: left;
+/* The matching-transactions table under a turn's AI summary (SearchChatTurn.tsx) -- rounded,
+   bordered card of its own so it reads as attached evidence for the summary above it rather than
+   a second, competing block. `.matchesTableWrap` gets its own horizontal scroll so a long
+   transaction id or amount never forces the whole 30% drawer wider than its column. */
+.matchesTableWrap {
+  margin-top: 10px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  overflow-x: auto;
   background: var(--color-surface);
-  transition:
-    border-color var(--transition-fast),
-    background var(--transition-fast);
 }
 
-.resultItem:hover {
+/* `table-layout: fixed` + explicit column widths (colgroup, SearchChatTurn.tsx) instead of the
+   browser's default `auto` sizing -- `auto` sizes each column to its single widest cell across
+   every row, so one row with a long "USD 267.80 -> USD 243.49"-style amount would blow out the
+   amount column's width and starve the transaction column, in a table this narrow (the 30% chat
+   drawer). Fixed proportions keep both columns aligned consistently against the *available* width
+   regardless of what any one row's content happens to be. */
+.matchesTable {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.matchesTable thead th {
+  position: sticky;
+  top: 0;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
   background: var(--color-bg);
-  border-color: var(--color-border-strong);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.resultTransactionId {
-  font-size: 13px;
+.matchesTable thead th:last-child {
+  text-align: right;
+}
+
+.matchesTable tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.matchesTable tbody tr:not(:last-child) th,
+.matchesTable tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.matchesTable tbody tr:hover {
+  background: var(--color-brand-tint);
+}
+
+.matchesTable th,
+.matchesTable td {
+  padding: 8px 10px;
+  vertical-align: top;
+}
+
+/* A plain table-cell (no `display` override) -- `display: flex` here previously took this `<th>`
+   out of the table's normal column-sizing algorithm while its sibling `<td>` stayed a real
+   table-cell, which is what threw column alignment off in the first place (see `.matchesTable`
+   above). The stacked-vertically look (id / pill) comes from `.matchCellStack` on a nested `<div>`
+   inside the cell instead, so the `<th>` itself renders as a normal, correctly-sized cell. */
+.matchesTable th[scope='row'] {
+  font-weight: 400;
+  text-align: left;
+}
+
+.matchCellStack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Same stacking approach as `.matchCellStack`, right-aligned to match the amount column -- the
+   date sits under the amount on this side of the table rather than under the reason pill on the
+   transaction side. */
+.matchAmountStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.matchTransactionId {
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-text);
 }
 
-.reasonPill {
-  justify-self: end;
-  display: inline-flex;
+.matchDate {
   font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.matchAmount {
+  text-align: right;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  /* Was `white-space: nowrap` -- with `table-layout: fixed` this column has a set width (see the
+     `colgroup` in SearchChatTurn.tsx), so a long "X -> Y" mismatch amount needs to wrap onto a
+     second line within it rather than forcing nowrap to overflow past the column's own edge. */
+  white-space: normal;
+  word-break: break-word;
+}
+
+.reasonPill {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 10px;
   font-weight: 500;
   padding: 2px 8px;
   border-radius: var(--radius-full);
@@ -251,17 +472,32 @@
   color: var(--color-attention-text);
 }
 
-.resultAmount {
-  grid-column: 1 / -1;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  font-variant-numeric: tabular-nums;
+.suggestions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 12px;
 }
 
-.resultDate {
-  grid-column: 1 / -1;
+.suggestionChip {
+  padding: 5px 12px;
   font-size: 11px;
-  color: var(--color-text-muted);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.suggestionChip:hover {
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+  border-color: var(--color-brand);
 }
 
 .composer {

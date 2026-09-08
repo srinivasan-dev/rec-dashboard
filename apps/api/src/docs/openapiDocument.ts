@@ -196,7 +196,7 @@ export const openApiDocument = {
           {
             name: 'pageSize',
             in: 'query',
-            schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+            schema: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
           },
           { name: 'reason', in: 'query', schema: exceptionReasonSchema },
           {
@@ -275,7 +275,11 @@ export const openApiDocument = {
           'pagination/filters). Capped at 50 results, sorted by transaction date. If nothing ' +
           'matches literally, falls back to returning the merchant’s entire exception set with ' +
           '`matchType: "intent"` (the same candidate pool POST /exceptions/search/explain hands ' +
-          'to the AI summary for a vague/natural-language query), rather than an empty result.',
+          'to the AI summary for a vague/natural-language query) as long as the query still ' +
+          'plausibly relates to reconciliation; if it has no such connection at all (e.g. "what ' +
+          'is the capital of Japan"), returns an empty result with `matchType: "off-topic"` ' +
+          'instead; if it matches a mocked FAQ entry (e.g. a refund-timing question), returns an ' +
+          'empty result with `matchType: "knowledge-base"`.',
         parameters: [
           {
             name: 'q',
@@ -295,7 +299,10 @@ export const openApiDocument = {
                   type: 'object',
                   properties: {
                     data: { type: 'array', items: exceptionDtoSchema },
-                    matchType: { type: 'string', enum: ['literal', 'intent'] },
+                    matchType: {
+                      type: 'string',
+                      enum: ['literal', 'intent', 'off-topic', 'knowledge-base'],
+                    },
                   },
                 },
               },

@@ -1,11 +1,21 @@
+/* Single line -- title and subtitle sit side by side (not stacked) so the banner reads at a
+   glance and doesn't grow taller than the header's title next to it. Truncates with an ellipsis
+   rather than wrapping if the column gets narrow, since it now lives in the header's right
+   column instead of spanning the full page width. */
 .banner {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 10px 20px;
+  /* Matches GlobalSearchBar's .form height (52px) -- the banner now shares a row with the date
+     range picker, right below the search bar, so the two read as equal-weight elements in the
+     stack instead of the banner looking visually smaller/lighter. */
+  min-height: 52px;
+  box-sizing: border-box;
   border-radius: var(--radius-md);
   border: 1px solid;
   animation: fadeInUp var(--transition-slow);
+  overflow: hidden;
 }
 
 .banner[data-tone='positive'] {
@@ -45,17 +55,34 @@
 
 .text {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  /* A flex item's automatic minimum width is its content's min-content, not 0 -- without this,
+     `.text` (itself a flex item of `.banner`) refused to shrink below its children's combined
+     natural width, which defeated `.subtitle`'s own ellipsis below (that never got a chance to
+     truncate) and forced this whole banner -- and everything sharing its row -- wider than the
+     viewport on a narrow phone. */
+  min-width: 0;
 }
 
 .title {
+  flex: none;
   font-size: 14px;
   font-weight: 700;
   color: var(--color-text);
+  white-space: nowrap;
 }
 
 .subtitle {
+  /* Same reasoning as `.text` above, one level down -- `.subtitle` is itself a flex item of
+     `.text`'s flex row, so it also needs an explicit `min-width: 0` before `overflow`/
+     `text-overflow` below can actually take effect instead of just sitting there unused. */
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

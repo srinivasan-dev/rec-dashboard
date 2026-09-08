@@ -1,0 +1,39 @@
+/* Label and chips are flat siblings in one wrapping flex row (not label + a separately-wrapping
+   nested list) so they read as one centered line and wrap chip-by-chip if the viewport is too
+   narrow, instead of the whole chip group dropping to its own line under the label. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  /* Same width expression as SearchHero.module.css's `.searchWrap` -- wide enough that the label
+     and all four chips fit on one line instead of the last chip wrapping to its own row. */
+  max-width: clamp(830px, 65vw, 1200px);
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.chip {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.chip:hover {
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+  border-color: var(--color-brand);
+}

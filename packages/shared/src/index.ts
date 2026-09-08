@@ -12,4 +12,4 @@ export {
   parseSettlementCsv,
   parseLedgerCsv,
 } from './parsing';
-export { reconcile, reconcileMerchant } from './reconcile';
+export { reconcile, reconcileMerchant, buildSummary, hasNoFinancialImpact } from './reconcile';

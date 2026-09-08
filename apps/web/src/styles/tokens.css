@@ -89,7 +89,25 @@
   --sidebar-width: 208px;
   --sidebar-width-collapsed: 64px;
   --topbar-height: 60px;
+  /* AppShell.module.css's `.content` top/bottom padding -- shared as a token (not repeated as a
+     literal) because anything that sizes itself against the viewport minus the chrome around it
+     (the main dashboard column, the chat drawer) needs this same number twice, once per edge, to
+     stay in sync with `.content`'s actual padding instead of drifting from it. */
+  --content-padding-y: 28px;
 }
+
+/**
+ * Responsive breakpoints -- canonical values, chosen to match real iPad viewport widths. CSS
+ * custom properties can't be read inside `@media` conditions, so this is documentation, not a
+ * usable token: every `@media` query in this app copies these literal px values directly (and
+ * apps/web/src/styles/breakpoints.ts mirrors them for the handful of places JS needs to branch,
+ * e.g. table-vs-cards). Keep both in sync by hand if these ever change.
+ *
+ *   mobile:            <= 599px
+ *   tablet-portrait:    600px – 1023px  (covers iPad portrait, 768px)
+ *   tablet-landscape:  1024px – 1279px  (covers iPad landscape, 1024px)
+ *   desktop:           >= 1280px
+ */
 
 @media (prefers-reduced-motion: reduce) {
   :root {

@@ -5,10 +5,15 @@ import { EXCEPTION_LABELS } from '../dashboard/exceptionLabels';
 
 const DEFAULTS: ExceptionsFilters = {
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
   sortBy: 'transactionDate',
   sortOrder: 'asc',
 };
+
+/** Options offered by the table's page-size selector (ExceptionsTable.tsx) -- kept here, next to
+ *  the default, so the two can't drift apart. All well within the API's `max(100)` bound
+ *  (apps/api/src/validation/exceptionsQuery.ts). */
+export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const SORT_BY_VALUES: SortBy[] = ['transactionDate', 'transactionId', 'reason', 'differenceAmount'];
 const SORT_ORDER_VALUES: SortOrder[] = ['asc', 'desc'];
@@ -29,10 +34,12 @@ function readFilters(searchParams: URLSearchParams): ExceptionsFilters {
       : undefined,
     from: searchParams.get('from') || undefined,
     to: searchParams.get('to') || undefined,
+    transactionId: searchParams.get('transactionId') || undefined,
     sortBy: SORT_BY_VALUES.includes(sortBy as SortBy) ? (sortBy as SortBy) : DEFAULTS.sortBy,
     sortOrder: SORT_ORDER_VALUES.includes(sortOrder as SortOrder)
       ? (sortOrder as SortOrder)
       : DEFAULTS.sortOrder,
+    showMatched: searchParams.get('showMatched') === 'true',
   };
 }
 
@@ -61,8 +68,10 @@ export function useExceptionsFilters(): [
     if (next.reason) params.set('reason', next.reason);
     if (next.from) params.set('from', next.from);
     if (next.to) params.set('to', next.to);
+    if (next.transactionId) params.set('transactionId', next.transactionId);
     if (next.sortBy !== DEFAULTS.sortBy) params.set('sortBy', next.sortBy);
     if (next.sortOrder !== DEFAULTS.sortOrder) params.set('sortOrder', next.sortOrder);
+    if (next.showMatched) params.set('showMatched', 'true');
     setSearchParams(params);
   }
 

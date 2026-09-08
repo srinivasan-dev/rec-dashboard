@@ -1,0 +1,153 @@
+.card {
+  /* Brighter, lighter tints than the semantic --color-positive-icon/--color-attention-icon
+     tokens -- those are tuned for small icons/dots on white and read as heavy, muddy fills once
+     they cover a large chart area. --chart-matched leans on the brand violet (complementary to
+     the amber below, per color theory) at a lighter tone; --chart-exceptions is a brighter amber
+     than the icon token so the two slices stay vivid and legible against the pastel dashboard bg
+     instead of looking dark. */
+  --chart-matched: #7c5cd4;
+  --chart-exceptions: #fbbf24;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 28px;
+  animation: fadeInUp var(--transition-slow);
+  /* Column layout so `.body` (flex: 1 below) can grow to fill any extra height the widgets row's
+     grid gives this card beyond its own content -- e.g. when a sibling widget (like the financial
+     impact chart's callout labels) makes the row taller than this card's own content needs. */
+  display: flex;
+  flex-direction: column;
+  /* See ExceptionsByReasonChart.module.css's identical property for why this measures the card
+     itself rather than relying on a viewport `@media` breakpoint. */
+  container-type: inline-size;
+}
+
+.heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.chartWrap {
+  position: relative;
+  flex: none;
+  /* Fluid, capped at the original 200px -- see ExceptionsByReasonChart.module.css's `.ringWrap`
+     for why `cqi` (the card's own width, via `container-type: inline-size` above) instead of a
+     fixed px value. */
+  width: min(200px, 45cqi);
+  height: min(200px, 45cqi);
+}
+
+.chartWrap svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.slice {
+  transform-origin: 100px 100px;
+  animation: sliceIn var(--transition-slow) both;
+}
+
+@keyframes sliceIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.centerLabel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.centerValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.centerCaption {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.legendItem strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.legendDot[data-tone='positive'] {
+  background: var(--chart-matched);
+}
+
+.legendDot[data-tone='attention'] {
+  background: var(--chart-exceptions);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .slice {
+    animation: none;
+  }
+}
+
+/* See ExceptionsByReasonChart.module.css's identical rule -- keyed to this card's own width, not
+   the viewport, for the same reason. */
+@container (max-width: 300px) {
+  .body {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .chartWrap {
+    width: min(160px, 60cqi);
+    height: min(160px, 60cqi);
+  }
+}

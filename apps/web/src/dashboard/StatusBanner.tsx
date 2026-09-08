@@ -31,13 +31,13 @@ export function StatusBanner({
       <span className={styles.text}>
         <span className={styles.title}>
           {allClear
-            ? `All ${totalChecked} transactions reconciled — you're all clear.`
-            : `${exceptionCount} of ${totalChecked} transactions need attention`}
+            ? `All ${totalChecked} transactions are reconciled`
+            : `${exceptionCount} transaction${exceptionCount === 1 ? '' : 's'} need your review`}
         </span>
         <span className={styles.subtitle}>
           {allClear
-            ? 'No exceptions found. All settlement amounts, dates, and records align.'
-            : `${matchedCount} matched. ${exceptionCount} have discrepancies that may need review.`}
+            ? 'Every settlement matches its ledger record — nothing needs your attention today.'
+            : `${matchedCount} of ${totalChecked} matched automatically — the rest have discrepancies worth a quick look.`}
         </span>
       </span>
     </div>

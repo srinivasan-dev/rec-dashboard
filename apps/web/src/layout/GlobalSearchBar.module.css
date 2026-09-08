@@ -1,23 +1,51 @@
+/* Fills its container -- SearchHero.module.css's .searchWrap caps that at 830px and centers it,
+   so this stretches to match rather than capping at its own fixed width. The border is the full
+   brand color at rest, not just a light tint -- so the search bar reads as clearly highlighted
+   even when idle, not only once focused. */
 .form {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
-  max-width: 440px;
-  height: 40px;
-  padding: 0 6px 0 14px;
+  width: 100%;
+  height: 52px;
+  padding: 0 8px 0 16px;
   background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-brand);
   border-radius: var(--radius-full);
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
+  animation: searchBarAttention 1.3s var(--ease-in-out) 2;
 }
 
 .form:focus-within {
+  /* Same border color as the idle state (not --color-brand-hover) -- the send button's fill is
+     also --color-brand, so keeping the border on that exact value means the ring and the button
+     are always the identical purple, focused or not; only the box-shadow ring and background
+     change to signal focus. */
   border-color: var(--color-brand);
   box-shadow: 0 0 0 3px var(--color-brand-tint);
   background: var(--color-surface);
+}
+
+/* Plays twice on mount (each page landing re-mounts this component) to draw the eye to the
+   search bar without looping forever and becoming a nuisance -- a soft outward ring pulse using
+   the same brand-tint color already used for the focus ring, so it reads as "this glows the same
+   way it will when you click it." */
+@keyframes searchBarAttention {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--color-brand-tint);
+  }
+  50% {
+    box-shadow: 0 0 0 6px var(--color-brand-tint);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form {
+    animation: none;
+  }
 }
 
 .icon {
@@ -71,4 +99,30 @@
 .sendButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Overrides the dimmed :disabled look above while the 1s submit-feedback delay is running --
+   this is active waiting, not an inert/unavailable state, so it should stay fully visible. */
+.sendButton[aria-busy='true'] {
+  opacity: 1;
+  cursor: wait;
+}
+
+.sendSpinner {
+  animation: sendSpin 0.8s linear infinite;
+}
+
+@keyframes sendSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sendSpinner {
+    animation: none;
+  }
 }

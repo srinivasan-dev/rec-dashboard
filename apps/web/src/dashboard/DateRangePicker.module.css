@@ -8,6 +8,26 @@
   animation: refreshSpin 0.8s linear infinite;
 }
 
+/* Flags that clicking refresh will apply a picked-but-not-yet-applied range, not just re-fetch
+   the one already showing -- `buttons.module.css`'s `.icon` has no `position` of its own, so this
+   is the anchor for `.pendingDot` below. */
+.refreshPending {
+  position: relative;
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.pendingDot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  border: 1.5px solid var(--color-surface);
+}
+
 @keyframes refreshSpin {
   from {
     transform: rotate(0deg);
@@ -71,6 +91,14 @@
   gap: 6px;
 }
 
+/* Replaces the old Last/Next direction <select> -- only "Last" ever made sense here (this
+   reviews reconciliation history; a future-dated range can't match anything in it), so once
+   "Next" was removed a one-option dropdown wasn't worth keeping either. */
+.relativeDirectionLabel {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
 .relativeRow select {
   height: 34px;
   padding: 0 8px;
@@ -82,7 +110,8 @@
 }
 
 .amountInput {
-  width: 64px;
+  flex: 1 1 0;
+  min-width: 0;
   height: 34px;
   padding: 0 8px;
   font-size: 13px;
@@ -90,6 +119,12 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
+}
+
+.unitSelect {
+  flex: 2 1 0;
+  min-width: 0;
+  width: auto;
 }
 
 .presetGrid {
@@ -100,15 +135,24 @@
 
 .presetButton {
   padding: 6px 8px;
+  font: inherit;
   font-size: 13px;
   text-align: left;
   color: var(--color-text);
+  /* Buttons have no background/border by default in this app -- global.css only resets
+     `cursor`, not appearance -- so without these two lines this falls back to the browser's
+     native dark-gray button chrome instead of the app's theme. */
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .presetButton:hover {
   background: var(--color-bg);
+  border-color: var(--color-border-strong);
 }
 
 .absoluteRow {

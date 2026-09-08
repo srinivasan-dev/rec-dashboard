@@ -6,6 +6,7 @@ import { ComingSoon } from './common/ComingSoon';
 import { ReconciliationRoute } from './dashboard/ReconciliationRoute';
 import { useAuthSession } from './hooks/useAuthSession';
 import { AppShell } from './layout/AppShell';
+import { GlobalLoadingBar } from './layout/GlobalLoadingBar';
 import { RootRedirect } from './RootRedirect';
 import {
   NAV_ITEMS_AFTER_RECONCILIATION,
@@ -30,41 +31,47 @@ const PLACEHOLDER_NAV_ITEMS = [
  */
 export function App(): JSX.Element {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <RootRedirect />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/reconciliation/:merchantId"
-        element={
-          <RequireAuth>
-            <AppShell>
-              <ReconciliationRoute />
-            </AppShell>
-          </RequireAuth>
-        }
-      />
-      {PLACEHOLDER_NAV_ITEMS.map((item) => (
+    <>
+      {/* Mounted once, above every route (including /login) -- see GlobalLoadingBar's own
+          docstring for why one component here covers the whole app's backend activity without
+          per-page wiring. */}
+      <GlobalLoadingBar />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
         <Route
-          key={item.path}
-          path={item.path}
+          path="/"
+          element={
+            <RequireAuth>
+              <RootRedirect />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/reconciliation/:merchantId"
           element={
             <RequireAuth>
               <AppShell>
-                <ComingSoonForCurrentMerchant title={item.label} />
+                <ReconciliationRoute />
               </AppShell>
             </RequireAuth>
           }
         />
-      ))}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {PLACEHOLDER_NAV_ITEMS.map((item) => (
+          <Route
+            key={item.path}
+            path={item.path}
+            element={
+              <RequireAuth>
+                <AppShell>
+                  <ComingSoonForCurrentMerchant title={item.label} />
+                </AppShell>
+              </RequireAuth>
+            }
+          />
+        ))}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
 

@@ -1,0 +1,90 @@
+/* Smooth "auto height" collapse (SearchHero.tsx docstring): a grid row that tweens from 1fr to
+   0fr scales its content down to zero height without ever computing a pixel value in JS, which is
+   what lets this animate at all -- `height: auto` can't be transitioned directly. `.collapseInner`
+   supplies `min-height: 0` so the grid row can actually shrink past its content's intrinsic
+   height instead of being clamped to it. */
+.collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--transition-slow),
+    opacity var(--transition-slow);
+}
+
+.collapseClosed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  /* Content is still in the DOM (mounted, not unmounted) at zero height during/after the collapse
+     -- block pointer interaction with it so a stray click can't land on a clipped-but-technically-
+     present control (matches SearchChatPanel's tabIndex={-1} treatment of its own closed state). */
+  pointer-events: none;
+}
+
+.collapseInner {
+  min-height: 0;
+}
+
+/* `overflow: hidden` only while actually collapsed/collapsing -- it has to be absent while open,
+   or it permanently clips anything inside that's meant to render outside this box's own bounds,
+   like DateRangePicker's dropdown panel (`position: absolute`, opens below the status row). Kept
+   scoped to `.collapseClosed` rather than being a permanent base style on `.collapseInner`: it's
+   only needed to hide this row's own content while shrinking toward 0fr, not while sitting open
+   at its natural height. */
+.collapseClosed .collapseInner {
+  overflow: hidden;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  /* Extra room below the topbar (on top of .content's own 28px padding-top in AppShell) before
+     the search bar starts. */
+  margin-top: 20px;
+  animation: fadeInUp var(--transition-slow);
+}
+
+/* Scales with the viewport instead of sitting at a fixed width on every screen -- grows toward
+   1200px as the window widens (clamp's middle value, 65vw, is what ties this to screen width),
+   rather than leaving a large unused gutter on wide monitors. `.searchWrap` uses the same
+   expression as `.statusWrap` so the two stay equal-width to each other at every size. The clamp's
+   floor is 0, not a fixed px like 830 -- a hard floor doesn't shrink past that point no matter how
+   narrow the actual viewport gets, which is exactly what forced this (and everything sharing its
+   row) wider than a phone-width screen; `width: 100%` already keeps it from shrinking past its own
+   parent's available width on the way down. */
+.searchWrap {
+  width: 100%;
+  max-width: clamp(0px, 65vw, 1200px);
+}
+
+.statusWrap {
+  width: 100%;
+  max-width: clamp(0px, 65vw, 1200px);
+  /* More separation from the suggested prompts above it than .hero's own 16px gap gives every
+     other pair -- the status banner reads as a distinct block, not another row of the same
+     group. */
+  margin-top: 24px;
+  /* The date range picker (moved here from Toolbar.tsx -- it now drives the chart widgets too,
+     not just the table) sits to the banner's right, sharing this row rather than stacking below
+     it. `space-between` plus `flex: 1` on the banner (below) both push it there -- belt and
+     suspenders, so it stays pinned to the right edge of this row (the same 830px width as the
+     search bar above) even if the banner's own content width ever changes. */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.statusWrap > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 699px) {
+  .statusWrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

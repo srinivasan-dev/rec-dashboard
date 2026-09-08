@@ -5,18 +5,27 @@ import type { AuthenticatedRequest } from '../middleware/merchantContext';
 import { toExceptionsCsv } from '../serializers/exceptionsCsv';
 import { toExceptionsPdf } from '../serializers/exceptionsPdf';
 import { toExceptionsXlsx } from '../serializers/exceptionsXlsx';
-import { toExceptionDto, toSummaryDto } from '../serializers/reconciliationSerializers';
+import {
+  toCurrencyTotalsDto,
+  toExceptionDto,
+  toSummaryDto,
+  toTransactionDto,
+} from '../serializers/reconciliationSerializers';
 import { getExplanation } from '../services/explanationService';
 import {
+  getCurrencyTotals,
   getExceptionById,
   getSummary,
+  getTransactionById,
   listExceptions,
   listExceptionsForExport,
+  listTransactions,
   searchExceptionsOrAll,
 } from '../services/reconciliationService';
 import { getSearchExplanation } from '../services/searchExplanationService';
 import { asyncHandler } from '../utils/asyncHandler';
 import {
+  dateRangeQuerySchema,
   exceptionsExportQuerySchema,
   exceptionsListQuerySchema,
   exceptionsSearchExplainBodySchema,
@@ -48,7 +57,23 @@ function sendNotFound(res: Response): void {
 }
 
 export const getSummaryHandler = asyncHandler(async (req, res) => {
-  res.status(200).json({ data: toSummaryDto(getSummary(merchantIdOf(req))) });
+  const parsed = dateRangeQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    sendValidationError(res, parsed.error);
+    return;
+  }
+  res.status(200).json({ data: toSummaryDto(getSummary(merchantIdOf(req), parsed.data)) });
+});
+
+export const getCurrencyTotalsHandler = asyncHandler(async (req, res) => {
+  const parsed = dateRangeQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    sendValidationError(res, parsed.error);
+    return;
+  }
+  res
+    .status(200)
+    .json({ data: getCurrencyTotals(merchantIdOf(req), parsed.data).map(toCurrencyTotalsDto) });
 });
 
 export const listExceptionsHandler = asyncHandler(async (req, res) => {
@@ -60,6 +85,26 @@ export const listExceptionsHandler = asyncHandler(async (req, res) => {
 
   const result = listExceptions(merchantIdOf(req), parsed.data);
   res.status(200).json({ data: result.data.map(toExceptionDto), pagination: result.pagination });
+});
+
+export const listTransactionsHandler = asyncHandler(async (req, res) => {
+  const parsed = exceptionsListQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    sendValidationError(res, parsed.error);
+    return;
+  }
+
+  const result = listTransactions(merchantIdOf(req), parsed.data);
+  res.status(200).json({ data: result.data.map(toTransactionDto), pagination: result.pagination });
+});
+
+export const getTransactionByIdHandler = asyncHandler(async (req, res) => {
+  const transaction = getTransactionById(merchantIdOf(req), req.params.id!);
+  if (!transaction) {
+    sendNotFound(res);
+    return;
+  }
+  res.status(200).json({ data: toTransactionDto(transaction) });
 });
 
 export const getExceptionByIdHandler = asyncHandler(async (req, res) => {

@@ -7,6 +7,7 @@ import { openApiDocument } from './docs/openapiDocument';
 import { requireBasicAuth } from './middleware/basicAuth';
 import { errorHandler } from './middleware/errorHandler';
 import { attachMerchantContext } from './middleware/merchantContext';
+import { simulateLatency } from './middleware/simulateLatency';
 import { authRouter } from './routes/auth';
 import { reconciliationRouter } from './routes/reconciliation';
 
@@ -31,6 +32,11 @@ export function createApp(): Express {
   app.get('/api/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
+
+  // Health checks stay instant (infra monitoring, not a UI loading state); everything else gets
+  // the artificial delay so the frontend's loading states are actually visible -- see
+  // simulateLatency.ts.
+  app.use(simulateLatency);
 
   app.use(
     '/api/docs',

@@ -1,0 +1,249 @@
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  animation: fadeInUp var(--transition-slow);
+  /* Column layout so `.body` (flex: 1 below) can grow to fill any extra height the widgets row's
+     grid gives this card beyond its own content -- e.g. when a sibling widget (like the financial
+     impact chart's callout labels) makes the row taller than this card's own content needs. */
+  display: flex;
+  flex-direction: column;
+  /* Establishes this card (not the viewport) as what `.body`'s `@container` query below measures.
+     The card's own rendered width depends on more than just viewport size -- the 3-column widget
+     grid, whether the sidebar is collapsed, and whether the chat drawer is open all change it
+     independently -- so a `@media` breakpoint tied to viewport width alone can't reliably catch
+     every case where this card gets too narrow for the ring + legend side by side. */
+  container-type: inline-size;
+}
+
+.heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+}
+
+.status {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.ringWrap {
+  position: relative;
+  flex: none;
+  /* Fluid, capped at the original 200px -- `cqi` is a percentage of the *card's* own content-box
+     width (via `container-type: inline-size` above), not the viewport, so the ring actually
+     shrinks as soon as this specific card narrows, whatever the reason. Was a hardcoded 200px x
+     200px that never shrank at all, which is what starved `.legend` of room and collapsed its text
+     to nothing once this card got narrow (see the `@container` stacking rule further down for the
+     point past which shrinking the ring alone isn't enough any more). */
+  width: min(200px, 45cqi);
+  height: min(200px, 45cqi);
+}
+
+.ringWrap svg {
+  display: block;
+  overflow: visible;
+  /* Fills whatever box `.ringWrap` above actually gives it -- the `viewBox` (still 0 0 200 200)
+     keeps the drawing's internal coordinate math simple regardless of the rendered size. Without
+     this, the `width`/`height` SVG attributes in ExceptionsByReasonChart.tsx would render the ring
+     at a fixed 200x200 no matter what CSS gave `.ringWrap`. */
+  width: 100%;
+  height: 100%;
+}
+
+.slice {
+  cursor: pointer;
+  transform-origin: 100px 100px;
+  transition:
+    d var(--transition-base),
+    opacity var(--transition-fast),
+    filter var(--transition-fast);
+  animation: sliceIn var(--transition-slow) both;
+}
+
+.slice[data-dimmed='true'] {
+  opacity: 0.35;
+}
+
+.slice[data-active='true'] {
+  filter: drop-shadow(0 4px 10px rgba(92, 45, 145, 0.25));
+}
+
+@keyframes sliceIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.centerLabel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 28px;
+  pointer-events: none;
+}
+
+.centerValue {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.centerCaption {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--color-text-muted);
+}
+
+.legend {
+  flex: 1;
+  min-width: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.legendRow {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.legendRow:hover,
+.legendRow:focus-visible,
+.legendRow[data-active='true'] {
+  background: var(--color-bg);
+  outline: none;
+}
+
+.legendTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.legendTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legendRow[data-active='true'] .legendTitle {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.legendCount {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.legendTrack {
+  display: block;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.legendFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  animation: growIn var(--transition-slow) both;
+}
+
+@keyframes growIn {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .slice,
+  .legendFill {
+    animation: none;
+  }
+
+  .slice {
+    transition: none;
+  }
+}
+
+/* Stacks ring-above-legend once this card itself (not the viewport) is too narrow for them to sit
+   side by side comfortably -- 360px leaves the legend a reasonable minimum even after the ring
+   above has already shrunk as far as `min(200px, 45cqi)` takes it. This is what a merchant on a
+   14" laptop, a tablet, or a desktop with the chat drawer open all actually hit -- three different
+   causes for the same narrow-card symptom, all covered by measuring the card itself instead of
+   guessing which viewport widths might produce it. */
+@container (max-width: 360px) {
+  .body {
+    flex-direction: column;
+  }
+
+  .ringWrap {
+    width: min(160px, 60cqi);
+    height: min(160px, 60cqi);
+  }
+
+  .legend {
+    width: 100%;
+  }
+}

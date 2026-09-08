@@ -1,0 +1,110 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition:
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.transactionId {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.reasonPill {
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-pill-bg);
+  color: var(--color-neutral-pill-text);
+}
+
+.reasonPill[data-severity='amount'] {
+  background: var(--color-attention-pill-bg);
+  color: var(--color-attention-text);
+}
+
+.reasonPill[data-severity='matched'] {
+  background: var(--color-positive-bg);
+  color: var(--color-positive-text);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.expandCaret {
+  flex: none;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.detail {
+  border-top: 1px solid var(--color-border);
+}
+
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 12px 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.closeButton:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.card mark {
+  background: var(--color-attention-pill-bg);
+  color: var(--color-attention-text);
+  border-radius: 3px;
+  padding: 0 2px;
+}

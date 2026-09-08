@@ -21,13 +21,6 @@
   animation: fadeIn var(--transition-fast);
 }
 
-/* The date range picker sits at the left end of the toolbar -- its panel anchors from the
-   button's left edge instead of the right, or it would open off-screen under the sidebar. */
-.panelLeft {
-  right: auto;
-  left: 0;
-}
-
 .panelHeading {
   font-size: 11px;
   font-weight: 600;
@@ -71,4 +64,55 @@
   font-size: 13px;
   color: var(--color-text);
   cursor: pointer;
+}
+
+/* Themed <select> for popover panels (FilterMenu's Reason dropdown) -- the browser default
+   (system font, square corners, OS-native chevron) doesn't match the rest of the app's
+   token-driven inputs, so the native appearance is dropped in favor of a custom chevron drawn
+   with a background SVG, matching TransactionIdSearchBox/DateRangePicker's border/radius/focus
+   treatment. */
+.select {
+  width: 100%;
+  height: 36px;
+  padding: 0 32px 0 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6.5 4 4 4-4' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  appearance: none;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.select:hover {
+  border-color: var(--color-text-secondary);
+}
+
+.select:focus-visible {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--color-brand-tint);
+}
+
+/* breakpoint: mobile, see tokens.css breakpoints block -- anchoring to whichever edge (left/
+   right) the trigger button happens to sit near leaves little margin on a 375px viewport, so
+   pin the panel to the viewport itself instead of the wrapper. `position: fixed` means `top`
+   can no longer follow the trigger's own position, so it drops to a flat offset below the
+   topbar -- an acceptable trade for guaranteeing the panel is never clipped. */
+@media (max-width: 599px) {
+  .panel {
+    position: fixed;
+    top: 72px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+  }
 }

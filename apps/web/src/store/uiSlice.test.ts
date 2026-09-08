@@ -1,6 +1,8 @@
 import {
   allRowsCollapsed,
   allRowsExpanded,
+  mobileNavClosed,
+  mobileNavOpened,
   rowExpandToggled,
   rowExpanded,
   searchCleared,
@@ -16,9 +18,10 @@ import {
 
 const initialState: UiState = {
   expandedTransactionIds: [],
-  search: { query: null, history: [], drawerOpen: false },
+  search: { query: null, history: [], drawerOpen: false, pendingDraft: null },
   toasts: [],
   sidebarCollapsed: false,
+  mobileNavOpen: false,
 };
 
 describe('uiSlice', () => {
@@ -108,6 +111,17 @@ describe('uiSlice', () => {
 
       const expanded = uiReducer(collapsed, sidebarToggled());
       expect(expanded.sidebarCollapsed).toBe(false);
+    });
+  });
+
+  describe('mobile nav', () => {
+    it('opens and closes independently of the desktop collapse state', () => {
+      const opened = uiReducer(initialState, mobileNavOpened());
+      expect(opened.mobileNavOpen).toBe(true);
+      expect(opened.sidebarCollapsed).toBe(false);
+
+      const closed = uiReducer(opened, mobileNavClosed());
+      expect(closed.mobileNavOpen).toBe(false);
     });
   });
 

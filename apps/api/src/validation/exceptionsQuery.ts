@@ -17,6 +17,12 @@ function dateRangeIsValid(query: { from?: string; to?: string }): boolean {
 
 const DATE_RANGE_ISSUE = { message: '"from" must not be after "to"', path: ['from'] };
 
+const transactionIdParam = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100, 'transactionId must be at most 100 characters');
+
 export const exceptionsListQuerySchema = z
   .object({
     page: z.coerce.number().int('page must be an integer').min(1, 'page must be >= 1').default(1),
@@ -25,10 +31,14 @@ export const exceptionsListQuerySchema = z
       .int('pageSize must be an integer')
       .min(1, 'pageSize must be >= 1')
       .max(100, 'pageSize must be <= 100')
-      .default(20),
+      .default(10),
     reason: z.enum(EXCEPTION_REASONS).optional(),
     from: isoDateParam.optional(),
     to: isoDateParam.optional(),
+    // Quick transaction-id filter (Toolbar.tsx's TransactionIdSearchBox) -- a case-insensitive
+    // substring match, not the exact-id lookup GET /exceptions/:id does; distinct from the global
+    // search bar (searchExceptions), which also matches reason/currency/amounts, not just the id.
+    transactionId: transactionIdParam.optional(),
     sortBy: z
       .enum(['transactionDate', 'transactionId', 'reason', 'differenceAmount'])
       .default('transactionDate'),
@@ -38,6 +48,19 @@ export const exceptionsListQuerySchema = z
 
 export type ExceptionsListQuery = z.infer<typeof exceptionsListQuerySchema>;
 
+/** Just the date-range half of `exceptionsListQuerySchema`, reused by the summary/currency-totals
+ *  endpoints -- the date range picker that drives the table (Toolbar.tsx, historically) now also
+ *  drives the dashboard's chart widgets, so both need to accept and validate the same from/to
+ *  shape. */
+export const dateRangeQuerySchema = z
+  .object({
+    from: isoDateParam.optional(),
+    to: isoDateParam.optional(),
+  })
+  .refine(dateRangeIsValid, DATE_RANGE_ISSUE);
+
+export type DateRangeQuery = z.infer<typeof dateRangeQuerySchema>;
+
 export const EXPORT_FORMATS = ['csv', 'xlsx', 'pdf'] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
 
@@ -46,6 +69,7 @@ export const exceptionsExportQuerySchema = z
     reason: z.enum(EXCEPTION_REASONS).optional(),
     from: isoDateParam.optional(),
     to: isoDateParam.optional(),
+    transactionId: transactionIdParam.optional(),
     format: z.enum(EXPORT_FORMATS).default('csv'),
     // Exported rows follow the same sort as the on-screen table (whatever the merchant last set),
     // not a fixed order -- an export of "the current view" should match what they were looking at.

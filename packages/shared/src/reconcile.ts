@@ -256,13 +256,27 @@ export function reconcileMerchant(
 }
 
 /**
- * Whether an exception reason has a quantifiable financial amount at stake. DUPLICATE_LEDGER
- * and DATE_MISMATCH don't — a duplicate entry's "impact" is ambiguous (is the money doubled or
- * not? that requires human judgment, not a number), and a date-only difference has no amount
- * discrepancy by definition. Reporting a number for either would manufacture false precision.
- * See docs/product-spec.md §15 (risk: misleading merchants about financial impact).
+ * Whether an exception reason has a quantifiable financial amount at stake. DUPLICATE_LEDGER,
+ * DATE_MISMATCH, and CURRENCY_MISMATCH don't — a duplicate entry's "impact" is ambiguous (is the
+ * money doubled or not? that requires human judgment, not a number), a date-only difference has no
+ * amount discrepancy by definition, and a currency mismatch means the two sides aren't even
+ * denominated the same way, so there's no single-currency gap to report. Reporting a number for
+ * any of these would manufacture false precision. See docs/product-spec.md §15 (risk: misleading
+ * merchants about financial impact).
+ *
+ * Exported so callers that need to know "does this exception have a real dollar figure at all"
+ * without needing the figure itself (e.g. apps/api's reconciliationService.ts counting non-
+ * monetary exceptions per currency for the dashboard) can reuse this exact classification instead
+ * of re-deriving the same three-reason list a second time.
  */
+export function hasNoFinancialImpact(reason: ExceptionReason): boolean {
+  return (
+    reason === 'DUPLICATE_LEDGER' || reason === 'DATE_MISMATCH' || reason === 'CURRENCY_MISMATCH'
+  );
+}
+
 function financialImpactFor(exception: ReconciliationException): FinancialImpact | null {
+  if (hasNoFinancialImpact(exception.reason)) return null;
   switch (exception.reason) {
     case 'AMOUNT_MISMATCH':
       return { currency: exception.currency, amountMinorUnits: exception.differenceMinorUnits! };
@@ -273,14 +287,16 @@ function financialImpactFor(exception: ReconciliationException): FinancialImpact
       };
     case 'MISSING_SETTLEMENT':
       return { currency: exception.currency, amountMinorUnits: exception.ledger!.amountMinorUnits };
-    case 'DUPLICATE_LEDGER':
-    case 'DATE_MISMATCH':
-    case 'CURRENCY_MISMATCH':
+    default:
       return null;
   }
 }
 
-function buildSummary(
+/** Exported so callers (apps/api's reconciliationService.ts) can rebuild a summary from a
+ *  date-filtered subset of `matched`/`exceptions` -- e.g. for the dashboard's date-range picker
+ *  driving the chart widgets -- through the exact same deterministic aggregation `reconcile`
+ *  itself uses, rather than a second, possibly-diverging implementation. */
+export function buildSummary(
   merchantId: string,
   matched: MatchedTransaction[],
   exceptions: ReconciliationException[],

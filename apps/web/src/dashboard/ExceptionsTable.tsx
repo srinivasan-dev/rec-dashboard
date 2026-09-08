@@ -1,16 +1,21 @@
 import { Fragment } from 'react';
 
-import type { ExceptionDto, Pagination, SortBy, SortOrder } from '../api/types';
+import type { Pagination, SortBy, SortOrder, TransactionDto } from '../api/types';
+import { useIsTabletOrBelow } from '../hooks/useMediaQuery';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { allRowsCollapsed, allRowsExpanded, rowExpandToggled } from '../store/uiSlice';
+import { rowExpandToggled } from '../store/uiSlice';
+import { ExceptionCardList } from './ExceptionCardList';
 import { ExceptionDetailPanel } from './ExceptionDetailPanel';
-import { EXCEPTION_LABELS } from './exceptionLabels';
+import { reasonLabelFor } from './exceptionLabels';
 import { exceptionAmountSummary, exceptionDate, formatCurrencyAmount } from './formatting';
 import styles from './ExceptionsTable.module.css';
 import { Highlight } from './Highlight';
+import { PaginationControls } from './PaginationControls';
 
 export interface ExceptionsTableProps {
-  exceptions: ExceptionDto[];
+  /** `ExceptionDto[]` (exceptions-only, the default table) or `TransactionDto[]` (Toolbar.tsx's
+   *  "show matched transactions" checkbox) -- `ExceptionDto` is always assignable here. */
+  exceptions: TransactionDto[];
   sortBy: SortBy;
   sortOrder: SortOrder;
   onSortChange: (sortBy: SortBy) => void;
@@ -18,6 +23,8 @@ export interface ExceptionsTableProps {
    *  2026-09-08-epic17-search-and-inline-detail.md caps them server-side instead). */
   pagination?: Pagination;
   onPageChange?: (page: number) => void;
+  /** Also omitted in search mode, same reasoning as `onPageChange` above. */
+  onPageSizeChange?: (pageSize: number) => void;
   /** Highlights and, from the caller's perspective, has already filtered `exceptions` to matches. */
   searchQuery?: string | null;
 }
@@ -25,13 +32,16 @@ export interface ExceptionsTableProps {
 interface SortableColumn {
   sortBy: SortBy;
   label: string;
+  /** Right-aligns the header to match its column's numeric, right-aligned cells (`.cellNumeric`)
+   *  below -- left-aligned headers over right-aligned figures read as misaligned. */
+  numeric?: boolean;
 }
 
 const SORTABLE_COLUMNS: SortableColumn[] = [
   { sortBy: 'transactionId', label: 'Transaction' },
   { sortBy: 'reason', label: 'Reason' },
   { sortBy: 'transactionDate', label: 'Date' },
-  { sortBy: 'differenceAmount', label: 'Difference' },
+  { sortBy: 'differenceAmount', label: 'Difference', numeric: true },
 ];
 
 function ariaSortFor(
@@ -50,46 +60,34 @@ function ariaSortFor(
  * page itself.
  *
  * Exception detail is now inline (ExceptionDetailPanel), not a drawer -- expand state lives in
- * Redux (`expandedTransactionIds`) rather than local state, so "Expand all"/"Collapse all" can
- * act on every row without this component needing to reach into a parent. See
- * docs/sessions/2026-09-08-epic17-search-and-inline-detail.md.
+ * Redux (`expandedTransactionIds`) rather than local state, so "Expand all"/"Collapse all"
+ * (Toolbar.tsx's merged toolbar row, above this component) can act on every row without needing a
+ * ref into this one. See docs/sessions/2026-09-08-epic17-search-and-inline-detail.md.
  */
-export function ExceptionsTable({
+export function ExceptionsTable(props: ExceptionsTableProps): JSX.Element {
+  const isCardLayout = useIsTabletOrBelow();
+  if (isCardLayout) {
+    return <ExceptionCardList {...props} />;
+  }
+  return <ExceptionsTableGrid {...props} />;
+}
+
+function ExceptionsTableGrid({
   exceptions,
   sortBy,
   sortOrder,
   onSortChange,
   pagination,
   onPageChange,
+  onPageSizeChange,
   searchQuery,
 }: ExceptionsTableProps): JSX.Element {
   const dispatch = useAppDispatch();
   const expandedIds = useAppSelector((state) => state.ui.expandedTransactionIds);
   const expandedSet = new Set(expandedIds);
-  const allExpanded =
-    exceptions.length > 0 && exceptions.every((e) => expandedSet.has(e.transactionId));
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.tableActions}>
-        <button
-          type="button"
-          className={styles.tableActionButton}
-          onClick={() => dispatch(allRowsExpanded(exceptions.map((e) => e.transactionId)))}
-          disabled={exceptions.length === 0 || allExpanded}
-        >
-          Expand all
-        </button>
-        <button
-          type="button"
-          className={styles.tableActionButton}
-          onClick={() => dispatch(allRowsCollapsed())}
-          disabled={expandedIds.length === 0}
-        >
-          Collapse all
-        </button>
-      </div>
-
       <div className={styles.tableScroll}>
         <table className={styles.table}>
           <caption className={styles.caption}>Exceptions needing review</caption>
@@ -106,7 +104,7 @@ export function ExceptionsTable({
                 return (
                   <th
                     key={column.sortBy}
-                    className={styles.headerCell}
+                    className={`${styles.headerCell} ${column.numeric ? styles.headerCellNumeric : ''}`}
                     scope="col"
                     aria-sort={sort}
                   >
@@ -125,14 +123,17 @@ export function ExceptionsTable({
                   </th>
                 );
               })}
-              <th className={`${styles.headerCell} ${styles.plainHeaderCell}`} scope="col">
+              <th
+                className={`${styles.headerCell} ${styles.plainHeaderCell} ${styles.headerCellNumeric}`}
+                scope="col"
+              >
                 Amount
               </th>
             </tr>
           </thead>
           <tbody>
             {exceptions.map((exception) => {
-              const label = EXCEPTION_LABELS[exception.reason];
+              const label = reasonLabelFor(exception.reason);
               const isExpanded = expandedSet.has(exception.transactionId);
               return (
                 <Fragment key={exception.transactionId}>
@@ -145,9 +146,22 @@ export function ExceptionsTable({
                         aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for transaction ${exception.transactionId}`}
                         onClick={() => dispatch(rowExpandToggled(exception.transactionId))}
                       >
-                        <span aria-hidden="true" className={styles.expandCaret}>
-                          {isExpanded ? '▾' : '▸'}
-                        </span>
+                        <svg
+                          aria-hidden="true"
+                          className={styles.expandCaret}
+                          width="14"
+                          height="14"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                        >
+                          <path
+                            d="M6 4l4 4-4 4"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                       </button>
                     </td>
                     <td className={`${styles.cell} ${styles.transactionId}`}>
@@ -183,27 +197,11 @@ export function ExceptionsTable({
       </div>
 
       {pagination && onPageChange ? (
-        <nav className={styles.pagination} aria-label="Exceptions pagination">
-          <button
-            type="button"
-            className={styles.pageButton}
-            onClick={() => onPageChange(pagination.page - 1)}
-            disabled={pagination.page <= 1}
-          >
-            Previous
-          </button>
-          <span>
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-          <button
-            type="button"
-            className={styles.pageButton}
-            onClick={() => onPageChange(pagination.page + 1)}
-            disabled={pagination.page >= pagination.totalPages}
-          >
-            Next
-          </button>
-        </nav>
+        <PaginationControls
+          pagination={pagination}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
+        />
       ) : null}
     </div>
   );

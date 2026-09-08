@@ -1,5 +1,6 @@
 import { apiFetch } from './client';
 import type {
+  CurrencyTotalsDto,
   ExceptionDto,
   ExceptionsFilters,
   ExceptionsListResponse,
@@ -8,6 +9,8 @@ import type {
   SearchExplanationDto,
   SearchResultDto,
   SummaryDto,
+  TransactionDto,
+  TransactionsListResponse,
 } from './types';
 
 function toSearchParams(filters: Partial<ExceptionsFilters>): URLSearchParams {
@@ -17,13 +20,43 @@ function toSearchParams(filters: Partial<ExceptionsFilters>): URLSearchParams {
   if (filters.reason) params.set('reason', filters.reason);
   if (filters.from) params.set('from', filters.from);
   if (filters.to) params.set('to', filters.to);
+  if (filters.transactionId) params.set('transactionId', filters.transactionId);
   if (filters.sortBy) params.set('sortBy', filters.sortBy);
   if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
   return params;
 }
 
-export async function fetchSummary(): Promise<SummaryDto> {
-  const res = await apiFetch<{ data: SummaryDto }>('/api/reconciliation/summary');
+export interface DateRangeFilters {
+  from?: string;
+  to?: string;
+}
+
+function toDateRangeSearchParams(dateRange: DateRangeFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (dateRange.from) params.set('from', dateRange.from);
+  if (dateRange.to) params.set('to', dateRange.to);
+  return params;
+}
+
+/** `dateRange` is the same from/to the date-range picker (now shared across the widget charts
+ *  and the table, see SearchHero.tsx) applies to the table via `fetchExceptions` -- summary counts
+ *  and financial impact narrow to the same window. */
+export async function fetchSummary(dateRange: DateRangeFilters = {}): Promise<SummaryDto> {
+  const res = await apiFetch<{ data: SummaryDto }>(
+    `/api/reconciliation/summary?${toDateRangeSearchParams(dateRange)}`,
+  );
+  return res.data;
+}
+
+/** Settlement-side vs ledger-side totals per currency, across every checked transaction (not
+ *  just exceptions) -- backs the financial-impact-by-currency widget. Same `dateRange` as
+ *  `fetchSummary`. */
+export async function fetchCurrencyTotals(
+  dateRange: DateRangeFilters = {},
+): Promise<CurrencyTotalsDto[]> {
+  const res = await apiFetch<{ data: CurrencyTotalsDto[] }>(
+    `/api/reconciliation/summary/currency-totals?${toDateRangeSearchParams(dateRange)}`,
+  );
   return res.data;
 }
 
@@ -36,6 +69,21 @@ export function fetchExceptions(filters: ExceptionsFilters): Promise<ExceptionsL
 export async function fetchExceptionById(transactionId: string): Promise<ExceptionDto> {
   const res = await apiFetch<{ data: ExceptionDto }>(
     `/api/reconciliation/exceptions/${encodeURIComponent(transactionId)}`,
+  );
+  return res.data;
+}
+
+/** Every checked transaction (matched + exceptions) -- Toolbar.tsx's "show matched transactions"
+ *  checkbox. Same filters/pagination shape as `fetchExceptions`. */
+export function fetchTransactions(filters: ExceptionsFilters): Promise<TransactionsListResponse> {
+  return apiFetch<TransactionsListResponse>(
+    `/api/reconciliation/transactions?${toSearchParams(filters)}`,
+  );
+}
+
+export async function fetchTransactionById(transactionId: string): Promise<TransactionDto> {
+  const res = await apiFetch<{ data: TransactionDto }>(
+    `/api/reconciliation/transactions/${encodeURIComponent(transactionId)}`,
   );
   return res.data;
 }
@@ -91,7 +139,7 @@ export async function explainSearch(query: string): Promise<SearchExplanationDto
  * row, in the same order the merchant was looking at on screen.
  */
 export function buildExportUrl(
-  filters: Pick<ExceptionsFilters, 'reason' | 'from' | 'to'> &
+  filters: Pick<ExceptionsFilters, 'reason' | 'from' | 'to' | 'transactionId'> &
     Partial<Pick<ExceptionsFilters, 'sortBy' | 'sortOrder'>>,
   format: ExportFormat = 'csv',
 ): string {

@@ -147,4 +147,57 @@ describe('ExceptionsTable', () => {
 
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
+
+  describe('at tablet-portrait and below (useIsTabletOrBelow)', () => {
+    const originalMatchMedia = window.matchMedia;
+
+    beforeEach(() => {
+      // Simulates a tablet-portrait/mobile viewport so ExceptionsTable renders its
+      // ExceptionCardList branch instead of the <table> -- see apps/web/src/hooks/useMediaQuery.ts.
+      window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+    });
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+    });
+
+    it('renders a card list instead of a table', () => {
+      renderTable({ page: 1, pageSize: 20, total: 1, totalPages: 1 });
+
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.getByRole('list', { name: /exceptions needing review/i })).toBeInTheDocument();
+      expect(screen.getByText("Amount doesn't match")).toBeInTheDocument();
+    });
+
+    it('expands a card to show its detail, with a Close affordance', async () => {
+      const user = userEvent.setup();
+      renderTable({ page: 1, pageSize: 20, total: 1, totalPages: 1 });
+
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: new RegExp(EXCEPTION.transactionId) }));
+      expect(await screen.findByRole('tablist')).toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole('button', {
+          name: `Close details for transaction ${EXCEPTION.transactionId}`,
+        }),
+      );
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    });
+
+    it('still supports pagination in card mode', () => {
+      renderTable({ page: 1, pageSize: 2, total: 5, totalPages: 3 });
+
+      expect(
+        screen.getByRole('navigation', { name: /exceptions pagination/i }),
+      ).toBeInTheDocument();
+    });
+  });
 });

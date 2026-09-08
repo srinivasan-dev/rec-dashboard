@@ -16,6 +16,36 @@ const REASON_LABELS: Record<string, string> = {
 };
 
 /**
+ * The response for a query that has no plausible connection to reconciliation at all (see
+ * `reconciliationService.ts`'s `isPlausiblyReconciliationRelated`) -- e.g. "what is the capital
+ * of Japan". Fully deterministic (never routed through the AI provider): a merchant asking
+ * something off-topic should always get the same calm, on-brand decline, not an LLM improvising
+ * around it. Points them back at what this assistant *can* do; `ChatSuggestedPrompts` right below
+ * the transcript already surfaces concrete example questions grounded in their real data.
+ */
+export function buildOffTopicSearchExplanation(query: string): SearchExplanationResponse {
+  return {
+    explanationText:
+      `I can't help with "${query}" -- that's outside what this reconciliation assistant covers. ` +
+      "I'm happy to help with anything related to your reconciliation exceptions, though -- try " +
+      'asking about a specific transaction ID (e.g. "T1006"), a currency (AED, EUR, USD), an ' +
+      'amount, or an exception reason like "duplicate entries" or "amount mismatch". You can also ' +
+      'pick one of the suggested questions below.',
+    generatedBy: 'fallback',
+    matchCount: 0,
+  };
+}
+
+/**
+ * The response for a query that matched a mocked FAQ entry (knowledgeBase.ts) instead of asking
+ * about the merchant's own account -- always the canned answer verbatim, never routed through the
+ * AI provider (same reasoning as `buildOffTopicSearchExplanation`: consistent, demoable output).
+ */
+export function buildKnowledgeBaseSearchExplanation(answer: string): SearchExplanationResponse {
+  return { explanationText: answer, generatedBy: 'knowledge-base', matchCount: 0 };
+}
+
+/**
  * The guaranteed-safe summary, built directly from the deterministic aggregate facts already
  * computed in `buildSearchExplanationContext` -- same fallback guarantee as
  * `deterministicExplanation.ts`: a merchant never sees an AI failure as a blocking experience,

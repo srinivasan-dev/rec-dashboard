@@ -11,4 +11,13 @@ export default defineConfig({
       '/api': 'http://localhost:4000',
     },
   },
+  // @rapyd-portal/shared is a workspace-linked CommonJS package (packages/shared/dist/index.js).
+  // Vite serves linked packages straight from disk via its own lightweight CJS->ESM interop
+  // instead of pre-bundling them through esbuild, and that interop can fail to pick up every
+  // named export (parseAmountToMinorUnits/formatMinorUnitsAsDecimal) once real runtime imports
+  // of them showed up (FinancialImpactBarChart.tsx). Forcing it through esbuild's own, more
+  // robust CJS->ESM conversion via optimizeDeps.include fixes the missing-export error.
+  optimizeDeps: {
+    include: ['@rapyd-portal/shared'],
+  },
 });
