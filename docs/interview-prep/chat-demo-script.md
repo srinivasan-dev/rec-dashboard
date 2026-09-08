@@ -51,16 +51,20 @@ calm decline, badge: **"Standard summary"**, and the matches table never appears
 
 ## 4. Contact-support ticket escalation
 
-`ContactSupportPrompt` (`apps/web/src/dashboard/ContactSupportPrompt.tsx`) appears below the
-transcript once **3 questions** have been asked in the current chat session (any mix of the above
--- KB, real, or off-topic all count). To demo:
+Once **3 questions** have been asked in the current chat session (any mix of the above -- KB,
+real, or off-topic all count), a **"Create a support ticket"** chip joins the regular follow-up
+suggestions below the transcript (`apps/web/src/dashboard/SearchChatPanel.tsx`). To demo:
 
 1. Ask any 3 questions in a row (e.g. one from each section above).
-2. The "Still need help? Create a support ticket..." banner appears above the composer.
-3. Click **Create support ticket** -- a success toast appears bottom-right: "Support ticket
-   RPD-###### created successfully. Our team will follow up shortly." (ticket number is random,
-   generated client-side; nothing is persisted -- see the component's docstring).
-4. The button then shows "Ticket RPD-###### created" and is disabled for the rest of the session.
+2. The "Create a support ticket" chip appears alongside the other suggested follow-ups.
+3. Click it -- unlike the other chips (which fill the composer's draft), this one submits
+   immediately as its own chat turn: the assistant responds "Support ticket RPD-######
+   created successfully..." (`apps/web/src/dashboard/SearchChatTurn.tsx`, ticket number is random,
+   generated client-side; nothing is persisted -- see `supportTicket.ts`), and a success toast
+   appears top-center of the screen.
+4. Reopening the chat later in the same session (closing it, then submitting a new search) starts
+   a fresh transcript -- the previous conversation, including any earlier ticket turns, is cleared
+   (`uiSlice.ts`'s `searchSubmitted` reducer).
 
 ## Notes for future sessions
 
