@@ -1,0 +1,61 @@
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid;
+  animation: fadeInUp var(--transition-slow);
+}
+
+.banner[data-tone='positive'] {
+  background: var(--color-positive-bg);
+  border-color: var(--color-positive-border);
+  color: var(--color-positive-text);
+}
+
+.banner[data-tone='attention'] {
+  background: var(--color-attention-bg);
+  border-color: var(--color-attention-border);
+  color: var(--color-attention-text);
+}
+
+.icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.banner[data-tone='positive'] .icon {
+  background: var(--color-positive-icon);
+  color: var(--color-text-inverse);
+}
+
+.banner[data-tone='attention'] .icon {
+  background: var(--color-attention-icon);
+  color: var(--color-text-inverse);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}

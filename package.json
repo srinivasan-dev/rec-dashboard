@@ -1,0 +1,49 @@
+{
+  "name": "rapyd-settlement-reconciliation-portal",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build:shared && npm run build:api && npm run build:web",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "build:api": "npm run build:shared && npm run build --workspace=apps/api",
+    "build:web": "npm run build:shared && npm run build --workspace=apps/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --workspaces --if-present",
+    "test:api": "npm run test --workspace=apps/api",
+    "test:web": "npm run test --workspace=apps/web",
+    "test:e2e": "npm run test:e2e --workspace=apps/web",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "@commitlint/cli": "^19.4.0",
+    "@commitlint/config-conventional": "^19.2.2",
+    "husky": "^9.1.4",
+    "lint-staged": "^15.2.9",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}

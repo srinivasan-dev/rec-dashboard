@@ -1,0 +1,59 @@
+.wrapper {
+  animation: fadeInUp var(--transition-slow);
+}
+
+.heading {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  background: var(--color-neutral-pill-bg);
+  color: var(--color-neutral-pill-text);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.pill[data-severity='amount'] {
+  background: var(--color-attention-pill-bg);
+  color: var(--color-attention-text);
+}
+
+.pill:hover {
+  box-shadow: 0 0 0 2px var(--color-border) inset;
+}
+
+/* "All" (no data-severity) and any reason pill both flip to the brand color when selected --
+   matches the design reference where the active pill is always purple regardless of its
+   reason's normal amber/gray coloring. */
+.pill[data-active='true'] {
+  background: var(--color-brand);
+  color: var(--color-text-inverse);
+}
+
+.pill[data-active='true']:hover {
+  box-shadow: none;
+}

@@ -1,0 +1,208 @@
+/**
+ * The 70/30 split (docs/sessions -- search-chat-explain feature): `.splitLayout` is the flex row
+ * both sides live in, `.page` is the 70% (or 100%, when the chat panel is closed) main column,
+ * and `SearchChatPanel.module.css`'s `.panel`/`.panelOpen` is the 30% companion. Both sides
+ * transition their `flex-basis`/`max-width` together so the split animates smoothly instead of
+ * jumping -- see that file for the panel's own transition and `prefers-reduced-motion` handling.
+ */
+.splitLayout {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 1 1 100%;
+  min-width: 0;
+  /* No max-width here -- with the chat panel closed, this column *is* the whole content area
+     (Bug fix: it used to cap at 1200px even with nothing beside it to make room for, which read
+     as reserved space for a drawer that wasn't there). `.pageCompact` below caps it once there's
+     actually a 30% panel to share the row with. */
+  transition:
+    flex-basis var(--transition-slow),
+    max-width var(--transition-slow);
+}
+
+.pageCompact {
+  flex-basis: 70%;
+  max-width: 70%;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.headerSearch {
+  flex: none;
+  width: 100%;
+  max-width: 380px;
+}
+
+.searchModeBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-tint);
+  border: 1px solid var(--color-ai-border);
+}
+
+.searchModeSummary {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tableToolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.infoBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-info-border);
+  color: var(--color-info-text);
+  font-size: 13px;
+  animation: fadeIn var(--transition-base);
+}
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.skeletonCard {
+  height: 84px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--color-surface);
+}
+
+.skeletonBar {
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ececf0 25%, #f5f5f7 37%, #ececf0 63%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeletonLabel {
+  composes: skeletonBar;
+  width: 60%;
+  height: 10px;
+}
+
+.skeletonValue {
+  composes: skeletonBar;
+  width: 40%;
+  height: 20px;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 64px 24px;
+  animation: fadeIn var(--transition-base);
+}
+
+.errorIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-error-bg);
+  color: var(--color-error-icon);
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.errorTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.errorMessage {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  max-width: 420px;
+}
+
+.errorActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.tableError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-text);
+  font-size: 13px;
+}
+
+.skeletonTable {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeletonTableRow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+  padding: 4px 0;
+}
+
+.skeletonCell {
+  composes: skeletonBar;
+  height: 14px;
+}

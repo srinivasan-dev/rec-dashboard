@@ -1,0 +1,263 @@
+/**
+ * Collapsible left nav: `.shell`'s grid column and every label/text element inside `.sidebar`
+ * transition together on `--transition-slow` (ease-in-out, per tokens.css) so the collapse reads
+ * as one smooth motion rather than the column snapping while the text disappears separately.
+ */
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: var(--topbar-height) 1fr;
+  grid-template-areas:
+    'sidebar topbar'
+    'sidebar content';
+  min-height: 100vh;
+  transition: grid-template-columns var(--transition-slow);
+}
+
+.shellCollapsed {
+  grid-template-columns: var(--sidebar-width-collapsed) 1fr;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  background: #fafafa;
+  border-right: 1px solid var(--color-border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.collapseToggle {
+  flex: none;
+  align-self: flex-end;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  transition: background var(--transition-fast);
+}
+
+.collapseToggle:hover {
+  background: var(--color-bg);
+}
+
+.collapseToggleIcon {
+  transition: transform var(--transition-slow);
+}
+
+.sidebarCollapsed .collapseToggle {
+  align-self: center;
+}
+
+.sidebarCollapsed .collapseToggleIcon {
+  transform: rotate(180deg);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  min-height: 28px;
+}
+
+.brandMark {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-brand);
+  color: var(--color-text-inverse);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.brandText {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  max-width: 200px;
+  opacity: 1;
+  transition:
+    max-width var(--transition-slow),
+    opacity var(--transition-base);
+}
+
+.sidebarCollapsed .brandText {
+  max-width: 0;
+  opacity: 0;
+}
+
+.brandName {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.brandDivider {
+  color: var(--color-border-strong);
+}
+
+.brandSub {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: background var(--transition-fast);
+}
+
+.navItem:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.navItemActive {
+  composes: navItem;
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.navItemActive:hover {
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}
+
+.navIcon {
+  flex: none;
+  display: inline-flex;
+}
+
+.navLabel {
+  margin-left: 10px;
+  max-width: 160px;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  transition:
+    max-width var(--transition-slow),
+    margin-left var(--transition-slow),
+    opacity var(--transition-base);
+}
+
+.sidebarCollapsed .navItem {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebarCollapsed .navLabel {
+  margin-left: 0;
+  max-width: 0;
+  opacity: 0;
+}
+
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.topbarEnd {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+}
+
+.envPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+}
+
+.envDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-positive-icon);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.identityText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.identityName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.identityRole {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.content {
+  grid-area: content;
+  padding: 28px 32px;
+  overflow-x: auto;
+}

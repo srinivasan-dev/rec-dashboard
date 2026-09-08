@@ -1,0 +1,259 @@
+.panel {
+  padding: 20px 24px;
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  animation: fadeIn var(--transition-base);
+}
+
+.tablist {
+  display: flex;
+  gap: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 0 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast);
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--color-brand);
+  font-weight: 600;
+  border-bottom-color: var(--color-brand);
+}
+
+.body {
+  padding-top: 16px;
+}
+
+.panelStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reviewPill {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-attention-pill-bg);
+  color: var(--color-attention-text);
+}
+
+.amountGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 480px;
+}
+
+.amountCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  background: var(--color-surface);
+}
+
+.amountLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.amountValue {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.amountDate {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.differenceBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 480px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+}
+
+.differenceLabel {
+  font-size: 13px;
+  color: var(--color-error-text);
+}
+
+.differenceValue {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-error-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.fieldList {
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.fieldRow:last-child {
+  border-bottom: none;
+}
+
+.fieldLabel {
+  color: var(--color-text-muted);
+}
+
+.fieldValue {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.copyBlock {
+  max-width: 560px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.copyBlock p + p {
+  margin-top: 8px;
+}
+
+.copyLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.duplicateList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.comparisonTable {
+  width: 100%;
+  max-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.comparisonTable th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.comparisonTable td {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.comparisonTable td:first-child {
+  color: var(--color-text-muted);
+  font-variant-numeric: normal;
+}
+
+.aiPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 560px;
+}
+
+.aiBox {
+  border-radius: var(--radius-md);
+  background: var(--color-ai-bg);
+  border: 1px solid var(--color-ai-border);
+  padding: 14px 16px;
+  animation: fadeIn var(--transition-base);
+}
+
+.aiHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.aiHeaderTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ai-text);
+}
+
+.aiBadge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-ai-badge-bg);
+  color: var(--color-ai-text);
+}
+
+.aiText {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.disclaimer {
+  border-radius: var(--radius-md);
+  background: var(--color-attention-bg);
+  border: 1px solid var(--color-attention-border);
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-attention-text);
+}
+
+.disclaimerLabel {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+}

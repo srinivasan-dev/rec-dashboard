@@ -1,0 +1,74 @@
+.form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 440px;
+  height: 40px;
+  padding: 0 6px 0 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.form:focus-within {
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--color-brand-tint);
+  background: var(--color-surface);
+}
+
+.icon {
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+
+.input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+/* The visible focus indicator is `.form:focus-within`'s box-shadow ring, which follows the pill's
+   own border-radius -- the input's native focus outline would draw a second, square ring on top
+   of it (an input has no border-radius of its own to clip to), so it's suppressed here. */
+.input:focus {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.sendButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: var(--color-text-inverse);
+  transition:
+    background var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.sendButton:hover:not(:disabled) {
+  background: var(--color-brand-hover);
+}
+
+.sendButton:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.sendButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
