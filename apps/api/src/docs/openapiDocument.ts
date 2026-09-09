@@ -477,7 +477,7 @@ export const openApiDocument = {
       get: {
         tags: ['Reconciliation'],
         summary:
-          "List every checked transaction for the authenticated merchant -- matched and exceptions alike",
+          'List every checked transaction for the authenticated merchant -- matched and exceptions alike',
         description:
           'Same shape, filters, and pagination as GET /exceptions, widened to also include ' +
           'matched transactions (`reason: "MATCHED"`) -- backs the dashboard’s "show matched ' +

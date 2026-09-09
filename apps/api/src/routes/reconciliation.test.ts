@@ -21,30 +21,23 @@ beforeAll(async () => {
 });
 
 describe('unauthenticated access', () => {
-  it(
-    'rejects every reconciliation endpoint with 401 when there is no session at all',
-    async () => {
-      const anonymous = request(app);
+  it('rejects every reconciliation endpoint with 401 when there is no session at all', async () => {
+    const anonymous = request(app);
 
-      const summary = await anonymous.get('/api/reconciliation/summary');
-      const list = await anonymous.get('/api/reconciliation/exceptions');
-      const byId = await anonymous.get('/api/reconciliation/exceptions/T1013');
-      const exported = await anonymous.get('/api/reconciliation/exceptions/export');
-      const explanation = await anonymous.post(
-        '/api/reconciliation/exceptions/T1013/explanation',
-      );
+    const summary = await anonymous.get('/api/reconciliation/summary');
+    const list = await anonymous.get('/api/reconciliation/exceptions');
+    const byId = await anonymous.get('/api/reconciliation/exceptions/T1013');
+    const exported = await anonymous.get('/api/reconciliation/exceptions/export');
+    const explanation = await anonymous.post('/api/reconciliation/exceptions/T1013/explanation');
 
-      for (const res of [summary, list, byId, exported, explanation]) {
-        expect(res.status).toBe(401);
-        expect(res.body.error.code).toBe('UNAUTHENTICATED');
-      }
-    },
-    // 5 sequential real HTTP round-trips through supertest -- comfortably under a second in
-    // isolation, but flaky against Jest's 5s default under load (observed during the 2026-09-09
-    // overnight run's full-suite pass). Each request is rejected by auth middleware before ever
-    // reaching CSV/reconciliation logic, so this isn't masking a real performance regression.
-    15000,
-  );
+    for (const res of [summary, list, byId, exported, explanation]) {
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe('UNAUTHENTICATED');
+    }
+  }, // isolation, but flaky against Jest's 5s default under load (observed during the 2026-09-09 // 5 sequential real HTTP round-trips through supertest -- comfortably under a second in
+  // overnight run's full-suite pass). Each request is rejected by auth middleware before ever
+  // reaching CSV/reconciliation logic, so this isn't masking a real performance regression.
+  15000);
 });
 
 describe('GET /api/reconciliation/summary', () => {

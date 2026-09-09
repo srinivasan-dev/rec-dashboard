@@ -25,7 +25,7 @@ once complete).
 ### Fixed
 
 - **`npm run build` was silently broken** — `vite build` failed with `"parseAmountToMinorUnits" is
-  not exported by ".../packages/shared/dist/index.js"`. `packages/shared` builds to CommonJS (for
+not exported by ".../packages/shared/dist/index.js"`. `packages/shared` builds to CommonJS (for
   `apps/api`'s Node `require`); Rollup's production commonjs handling couldn't statically detect
   that one re-export, even though `tsc --noEmit` and `vite dev` both looked clean (neither reads
   the compiled `dist/` the way `vite build` does). Fixed by aliasing the `@rapyd-portal/shared`
