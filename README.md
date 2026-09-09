@@ -84,11 +84,11 @@ npm run dev:api      # Express API on http://localhost:4000
 npm run dev:web      # Vite dev server on http://localhost:5173 (proxies /api to the API)
 ```
 
-Open `http://localhost:5173` — you'll land on a login page. Sign in with the demo account:
-**`m104@rapyd.com` / `rapyd@2026`** (override via `DEMO_LOGIN_USERNAME` / `DEMO_LOGIN_PASSWORD` env
-vars). No git hooks run automatically on commit — run `npm run lint`, `npm run typecheck`, and
-`npm run format:check` yourself before committing (CI runs the same checks plus tests/build/e2e
-as the actual gate before merge).
+Open `http://localhost:5173` — you'll land on a login page. Demo account credentials are shared
+separately (not in this file); override via the `DEMO_LOGIN_USERNAME` / `DEMO_LOGIN_PASSWORD` env
+vars if you need a different login. No git hooks run automatically on commit — run `npm run lint`,
+`npm run typecheck`, and `npm run format:check` yourself before committing (CI runs the same
+checks plus tests/build/e2e as the actual gate before merge).
 
 Interactive API docs (Swagger UI) are at `http://localhost:4000/api/docs/`, gated behind HTTP
 Basic Auth — default dev credentials `admin` / `admin123` (override via the `SWAGGER_DOCS_USER` /
@@ -107,7 +107,7 @@ npm run build        # packages/shared → apps/api → apps/web
 
 ## Sample merchant
 
-Logging in with the demo account (`m104@rapyd.com` / `rapyd@2026`, see "How to run") establishes a
+Logging in with the demo account (see "How to run") establishes a
 real, signed session (`apps/api/src/auth/`, `apps/api/src/middleware/merchantContext.ts`) that
 resolves to merchant **`M-104`** — every `/api/reconciliation/*` request is scoped to whatever
 merchant the session says, never a client-supplied value. `data/`'s CSVs span multiple merchants; M-104's slice
