@@ -10,7 +10,7 @@ import {
   reconciliationPath,
 } from '../routes';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { mobileNavClosed, mobileNavOpened, sidebarToggled } from '../store/uiSlice';
+import { mobileNavClosed, mobileNavOpened, searchCleared, sidebarToggled } from '../store/uiSlice';
 import buttons from '../styles/buttons.module.css';
 import styles from './AppShell.module.css';
 import { LanguageMenu } from './LanguageMenu';
@@ -42,6 +42,18 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
   // only applies while that page is actually showing -- other routes (Home, Collect, ...) render
   // the generic ComingSoon placeholder and shouldn't claim "Settlement Reconciliation" as theirs.
   const isReconciliationRoute = location.pathname.startsWith('/reconciliation');
+
+  // The chat panel (SearchChatPanel.tsx) and the main search bar (GlobalSearchBar.tsx) both only
+  // render on the reconciliation route, but their state (query/history/drawerOpen) lives in this
+  // same global slice -- without this, navigating away and back would silently restore the old
+  // search text and conversation instead of a merchant seeing a clean page next time they arrive.
+  // No toast/alert -- just a silent reset, since this is a routine navigation, not something that
+  // needs confirming.
+  function handleNavigateAway(): void {
+    if (isReconciliationRoute) {
+      dispatch(searchCleared());
+    }
+  }
 
   // Closes the mobile drawer automatically once a nav link is followed -- a merchant tapping a
   // section shouldn't also have to dismiss the drawer as a separate step.
@@ -122,6 +134,7 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
                   to={item.path}
                   className={({ isActive }) => (isActive ? styles.navItemActive : styles.navItem)}
                   title={item.label}
+                  onClick={handleNavigateAway}
                 >
                   <NavIcon name={item.icon} />
                   <span className={styles.navLabel}>{item.label}</span>
@@ -144,6 +157,7 @@ export function AppShell({ children }: { children: ReactNode }): JSX.Element {
                   to={item.path}
                   className={({ isActive }) => (isActive ? styles.navItemActive : styles.navItem)}
                   title={item.label}
+                  onClick={handleNavigateAway}
                 >
                   <NavIcon name={item.icon} />
                   <span className={styles.navLabel}>{item.label}</span>

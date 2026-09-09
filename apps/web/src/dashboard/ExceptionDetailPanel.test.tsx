@@ -1,36 +1,38 @@
 import { screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
-import { fetchExceptionById, fetchExplanation } from '../api/reconciliation';
+import { fetchTransactionById, fetchExplanation } from '../api/reconciliation';
 import { AMOUNT_MISMATCH_EXCEPTION, DUPLICATE_LEDGER_EXCEPTION } from '../test/fixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { ExceptionDetailPanel } from './ExceptionDetailPanel';
 
 jest.mock('../api/reconciliation', () => ({
   ...jest.requireActual('../api/reconciliation'),
-  fetchExceptionById: jest.fn(),
+  fetchTransactionById: jest.fn(),
   fetchExplanation: jest.fn(),
 }));
 
-const mockedFetchExceptionById = jest.mocked(fetchExceptionById);
+const mockedFetchTransactionById = jest.mocked(fetchTransactionById);
 const mockedFetchExplanation = jest.mocked(fetchExplanation);
 
 /**
- * Covers what `ExceptionDrawer.test.tsx` used to cover for the same content, before exception
- * detail moved from a drawer to an inline expandable row (docs/sessions/
- * 2026-09-08-epic17-search-and-inline-detail.md). Dialog semantics, the focus trap, and
- * open/close behavior are gone -- this renders in normal document flow now, exactly as
- * `ExceptionsTable.tsx` mounts it inside an expanded row -- so this only tests the tabs/content,
- * not any drawer chrome.
+ * Covers the current two-column, tab-free layout (ExceptionDetailPanel.tsx's own docstring: "not
+ * the earlier Details/Settlement vs. Ledger/AI Explain tabs" -- everything a merchant needs is
+ * visible at once, and the AI explanation is fetched unconditionally on mount, not gated behind
+ * opening a tab). Previously (`ExceptionDrawer.test.tsx`, then an earlier version of this file)
+ * this content lived behind three tabs a merchant had to click through; that UI no longer exists,
+ * so this suite asserts everything is visible without any interaction, and that the explanation
+ * fetch fires as soon as the panel mounts.
  */
 describe('ExceptionDetailPanel', () => {
   it('shows the merchant-facing title, settlement/ledger detail, difference, and next step', async () => {
-    mockedFetchExceptionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+    mockedFetchTransactionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+    mockedFetchExplanation.mockResolvedValue({
+      explanationText: 'Explanation text.',
+      generatedBy: 'mock',
+    });
     const { container } = renderWithProviders(<ExceptionDetailPanel transactionId="T1013" />);
 
     await screen.findByText('T1013');
-    // Both amount figures also appear in the (hidden-but-rendered) comparison tabpanel, so this
-    // checks the panel's full text content rather than asserting a single unique element.
     expect(container).toHaveTextContent('USD 267.80');
     expect(container).toHaveTextContent('USD 243.49');
     expect(container).toHaveTextContent('USD 24.31');
@@ -39,7 +41,11 @@ describe('ExceptionDetailPanel', () => {
   });
 
   it('shows both duplicate ledger entries so the merchant can verify them', async () => {
-    mockedFetchExceptionById.mockResolvedValue(DUPLICATE_LEDGER_EXCEPTION);
+    mockedFetchTransactionById.mockResolvedValue(DUPLICATE_LEDGER_EXCEPTION);
+    mockedFetchExplanation.mockResolvedValue({
+      explanationText: 'Explanation text.',
+      generatedBy: 'mock',
+    });
     renderWithProviders(<ExceptionDetailPanel transactionId="T1008" />);
 
     expect(await screen.findByText('T1008')).toBeInTheDocument();
@@ -48,57 +54,31 @@ describe('ExceptionDetailPanel', () => {
     expect(within(duplicateList).getByText(/L7052/)).toBeInTheDocument();
   });
 
-  it('opens on the Details tab, with Settlement vs. Ledger and AI Explain inactive', async () => {
-    mockedFetchExceptionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+  it('shows the settlement vs. ledger side-by-side comparison without any extra interaction', async () => {
+    mockedFetchTransactionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+    mockedFetchExplanation.mockResolvedValue({
+      explanationText: 'Explanation text.',
+      generatedBy: 'mock',
+    });
     renderWithProviders(<ExceptionDetailPanel transactionId="T1013" />);
 
     await screen.findByText('T1013');
 
-    expect(screen.getByRole('tab', { name: /^details$/i })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    expect(screen.getByRole('tab', { name: /settlement vs\. ledger/i })).toHaveAttribute(
-      'aria-selected',
-      'false',
-    );
-    expect(screen.getByRole('tab', { name: /ai explain/i })).toHaveAttribute(
-      'aria-selected',
-      'false',
-    );
+    const panel = screen.getByText(/side-by-side comparison/i).closest('div');
+    expect(panel).not.toBeNull();
+    expect(within(panel as HTMLElement).getByText('S5013')).toBeInTheDocument();
+    expect(within(panel as HTMLElement).getByText('L7012')).toBeInTheDocument();
   });
 
-  it('switches to the Settlement vs. Ledger tab and shows the side-by-side comparison', async () => {
-    mockedFetchExceptionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
-    const user = userEvent.setup();
-    renderWithProviders(<ExceptionDetailPanel transactionId="T1013" />);
-
-    await screen.findByText('T1013');
-    await user.click(screen.getByRole('tab', { name: /settlement vs\. ledger/i }));
-
-    const panel = screen.getByRole('tabpanel', { name: /settlement vs\. ledger/i });
-    expect(panel).toBeVisible();
-    expect(within(panel).getByText('S5013')).toBeInTheDocument();
-    expect(within(panel).getByText('L7012')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /^details$/i })).toHaveAttribute(
-      'aria-selected',
-      'false',
-    );
-  });
-
-  it('fetches the explanation only once the AI Explain tab is opened, and shows it with a disclaimer', async () => {
-    mockedFetchExceptionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+  it('fetches the AI explanation as soon as the panel mounts, and shows it with a disclaimer', async () => {
+    mockedFetchTransactionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
     mockedFetchExplanation.mockResolvedValue({
       explanationText: 'The settlement and ledger amounts for this transaction do not match.',
       generatedBy: 'mock',
     });
-    const user = userEvent.setup();
     renderWithProviders(<ExceptionDetailPanel transactionId="T1013" />);
 
     await screen.findByText('T1013');
-    expect(mockedFetchExplanation).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole('tab', { name: /ai explain/i }));
 
     expect(mockedFetchExplanation).toHaveBeenCalledWith('T1013');
     expect(
@@ -109,34 +89,49 @@ describe('ExceptionDetailPanel', () => {
   });
 
   it('does not claim "AI-generated" when the backend used its deterministic fallback', async () => {
-    mockedFetchExceptionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+    mockedFetchTransactionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
     mockedFetchExplanation.mockResolvedValue({
       explanationText:
         'The settlement and ledger amounts for this transaction do not match. This needs review.',
       generatedBy: 'fallback',
     });
-    const user = userEvent.setup();
     renderWithProviders(<ExceptionDetailPanel transactionId="T1013" />);
 
     await screen.findByText('T1013');
-    await user.click(screen.getByRole('tab', { name: /ai explain/i }));
 
     expect(await screen.findByText(/standard explanation/i)).toBeInTheDocument();
     expect(screen.queryByText(/auto-generated/i)).not.toBeInTheDocument();
   });
 
   it('shows a calm fallback if the explanation request fails, without hiding the deterministic detail', async () => {
-    mockedFetchExceptionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+    mockedFetchTransactionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
     mockedFetchExplanation.mockRejectedValue(new Error('network down'));
-    const user = userEvent.setup();
     renderWithProviders(<ExceptionDetailPanel transactionId="T1013" />);
 
     await screen.findByText('T1013');
-    await user.click(screen.getByRole('tab', { name: /ai explain/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/details above are accurate/i);
+    expect(screen.getByText('USD 24.31')).toBeInTheDocument();
+  });
 
-    await user.click(screen.getByRole('tab', { name: /^details$/i }));
-    expect(screen.getByRole('tabpanel', { name: /^details$/i })).toHaveTextContent('USD 24.31');
+  it('shows a calm confirmation, not the exception layout, for a matched transaction', async () => {
+    mockedFetchTransactionById.mockResolvedValue({
+      ...AMOUNT_MISMATCH_EXCEPTION,
+      reason: 'MATCHED',
+    });
+    renderWithProviders(<ExceptionDetailPanel transactionId="T1013" />);
+
+    expect(await screen.findByText(/no action needed/i)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows a retry affordance if the transaction detail itself fails to load', async () => {
+    mockedFetchTransactionById.mockRejectedValue(new Error('network down'));
+    renderWithProviders(<ExceptionDetailPanel transactionId="T1013" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /couldn't load this transaction's detail/i,
+    );
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 });

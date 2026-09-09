@@ -63,6 +63,7 @@ describe('uiSlice', () => {
         query: 'duplicate',
         history: ['duplicate'],
         drawerOpen: true,
+        pendingDraft: null,
       });
     });
 
@@ -83,6 +84,18 @@ describe('uiSlice', () => {
       expect(closed.search.history).toEqual(['duplicate']);
     });
 
+    it('submitting a query after the panel was closed starts a fresh conversation', () => {
+      const firstConversation = uiReducer(
+        uiReducer(initialState, searchSubmitted('duplicate')),
+        searchSubmitted('amount mismatch'),
+      );
+      const closed = uiReducer(firstConversation, searchDrawerClosed());
+      const reopenedWithNewQuery = uiReducer(closed, searchSubmitted('missing settlement'));
+
+      expect(reopenedWithNewQuery.search.history).toEqual(['missing settlement']);
+      expect(reopenedWithNewQuery.search.drawerOpen).toBe(true);
+    });
+
     it('reopening the panel does nothing without an active query', () => {
       const reopened = uiReducer(initialState, searchDrawerOpened());
       expect(reopened.search.drawerOpen).toBe(false);
@@ -100,7 +113,12 @@ describe('uiSlice', () => {
       const submitted = uiReducer(initialState, searchSubmitted('duplicate'));
       const cleared = uiReducer(submitted, searchCleared());
 
-      expect(cleared.search).toEqual({ query: null, history: [], drawerOpen: false });
+      expect(cleared.search).toEqual({
+        query: null,
+        history: [],
+        drawerOpen: false,
+        pendingDraft: null,
+      });
     });
   });
 

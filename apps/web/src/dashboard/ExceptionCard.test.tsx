@@ -1,23 +1,29 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { fetchExceptionById } from '../api/reconciliation';
+import { fetchTransactionById, fetchExplanation } from '../api/reconciliation';
 import { AMOUNT_MISMATCH_EXCEPTION } from '../test/fixtures';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { ExceptionCard } from './ExceptionCard';
 
 jest.mock('../api/reconciliation', () => ({
   ...jest.requireActual('../api/reconciliation'),
-  fetchExceptionById: jest.fn(),
+  fetchTransactionById: jest.fn(),
+  fetchExplanation: jest.fn(),
 }));
 
-const mockedFetchExceptionById = jest.mocked(fetchExceptionById);
+const mockedFetchTransactionById = jest.mocked(fetchTransactionById);
+const mockedFetchExplanation = jest.mocked(fetchExplanation);
 
 const EXCEPTION = AMOUNT_MISMATCH_EXCEPTION;
 
 describe('ExceptionCard', () => {
   beforeEach(() => {
-    mockedFetchExceptionById.mockResolvedValue(EXCEPTION);
+    mockedFetchTransactionById.mockResolvedValue(EXCEPTION);
+    mockedFetchExplanation.mockResolvedValue({
+      explanationText: 'Explanation text.',
+      generatedBy: 'mock',
+    });
   });
 
   it('renders the transaction id, merchant-facing reason, date, and amount', () => {
@@ -31,12 +37,14 @@ describe('ExceptionCard', () => {
     const user = userEvent.setup();
     renderWithProviders(<ExceptionCard exception={EXCEPTION} />);
 
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    // ExceptionDetailPanel is a two-column, tab-free layout now (no `tablist`/`tab` roles) --
+    // "Side-by-side comparison" is content that only renders once the panel is open.
+    expect(screen.queryByText(/side-by-side comparison/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /t1013/i }));
-    expect(await screen.findByRole('tablist')).toBeInTheDocument();
+    expect(await screen.findByText(/side-by-side comparison/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /close details for transaction t1013/i }));
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByText(/side-by-side comparison/i)).not.toBeInTheDocument();
   });
 });

@@ -516,6 +516,11 @@ const RECONCILIATION_TOPIC_WORDS = new Set([
   'usd',
   'eur',
   'gbp',
+  'financial',
+  'impact',
+  'total',
+  'summary',
+  'summarize',
 ]);
 
 /**

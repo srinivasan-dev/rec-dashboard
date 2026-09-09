@@ -36,7 +36,7 @@ describe('DateRangePicker', () => {
     expect(screen.getByRole('button', { name: /jul 1, 2026.*jul 21, 2026/i })).toBeInTheDocument();
   });
 
-  it('resolves a relative preset to concrete dates relative to real "now"', async () => {
+  it('resolves a relative preset to concrete dates once applied via the refresh/apply button', async () => {
     const user = userEvent.setup({ delay: null });
     const onChange = jest.fn();
     render(
@@ -45,6 +45,13 @@ describe('DateRangePicker', () => {
 
     await user.click(screen.getByRole('button', { name: /all time/i }));
     await user.click(screen.getByRole('button', { name: /last 7 days/i }));
+
+    // Picking a common preset only stages it (DateRangePicker.tsx's `applyCommonPreset` sets
+    // pending state and closes the popover, it doesn't call `onChange`) -- the shared refresh
+    // icon commits whatever's pending, and its accessible name switches to "Apply selected date
+    // range" once there's something to commit.
+    expect(onChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /apply selected date range/i }));
 
     expect(onChange).toHaveBeenCalledWith({ from: '2026-09-01', to: '2026-09-08' });
   });
@@ -59,7 +66,16 @@ describe('DateRangePicker', () => {
     await user.click(screen.getByRole('button', { name: /all time/i }));
     await user.type(screen.getByLabelText(/start date/i), '2026-07-01');
     await user.type(screen.getByLabelText(/end date/i), '2026-07-21');
-    await user.click(screen.getByRole('button', { name: /apply absolute range/i }));
+    // One shared Apply button now serves both Quick select and Absolute range (previously two
+    // separately-labeled buttons); its accessible name comes from an `aria-label` of "Apply
+    // selected date range" (visible text is just "Apply") -- it only stages the typed range, the
+    // refresh/apply icon below is what actually commits it via `onChange`. The two never render
+    // at once (this one lives inside the popover, which closes once clicked), so matching both by
+    // the same name is unambiguous.
+    await user.click(screen.getByRole('button', { name: /apply selected date range/i }));
+    expect(onChange).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /apply selected date range/i }));
 
     expect(onChange).toHaveBeenCalledWith({ from: '2026-07-01', to: '2026-07-21' });
   });
@@ -78,6 +94,7 @@ describe('DateRangePicker', () => {
 
     await user.click(screen.getByRole('button', { name: /jul 1, 2026/i }));
     await user.click(screen.getByRole('button', { name: /clear/i }));
+    await user.click(screen.getByRole('button', { name: /apply selected date range/i }));
 
     expect(onChange).toHaveBeenCalledWith({ from: undefined, to: undefined });
   });

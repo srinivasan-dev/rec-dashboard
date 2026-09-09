@@ -84,7 +84,7 @@ npm run dev:web      # Vite dev server on http://localhost:5173 (proxies /api to
 ```
 
 Open `http://localhost:5173` — you'll land on a login page. Sign in with the demo account:
-**`m104@rapyd.com` / `m104@123`** (override via `DEMO_LOGIN_USERNAME` / `DEMO_LOGIN_PASSWORD` env
+**`m104@rapyd.com` / `rapyd@2026`** (override via `DEMO_LOGIN_USERNAME` / `DEMO_LOGIN_PASSWORD` env
 vars). A pre-commit hook (Husky + lint-staged) runs lint/format/typecheck automatically on
 `git commit` — no extra setup beyond `npm install`.
 
@@ -105,7 +105,7 @@ npm run build        # packages/shared → apps/api → apps/web
 
 ## Sample merchant
 
-Logging in with the demo account (`m104@rapyd.com` / `m104@123`, see "How to run") establishes a
+Logging in with the demo account (`m104@rapyd.com` / `rapyd@2026`, see "How to run") establishes a
 real, signed session (`apps/api/src/auth/`, `apps/api/src/middleware/merchantContext.ts`) that
 resolves to merchant **`M-104`** — every `/api/reconciliation/*` request is scoped to whatever
 merchant the session says, never a client-supplied value. `data/`'s CSVs span multiple merchants; M-104's slice

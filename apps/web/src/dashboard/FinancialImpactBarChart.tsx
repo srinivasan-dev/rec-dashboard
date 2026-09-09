@@ -33,7 +33,6 @@ export const FinancialImpactBarChart = memo(function FinancialImpactBarChart({
   summary,
 }: FinancialImpactBarChartProps): JSX.Element {
   const totalsQuery = useCurrencyTotals(dateRange);
-  const totals = totalsQuery.data ?? [];
 
   const yetToReceiveByCurrency = useMemo(() => {
     const map = new Map<string, string>();
@@ -50,7 +49,7 @@ export const FinancialImpactBarChart = memo(function FinancialImpactBarChart({
   // a full bar, which is the only comparison this chart makes.
   const rows = useMemo(
     () =>
-      totals.map((row) => {
+      (totalsQuery.data ?? []).map((row) => {
         const settledMinor = parseAmountToMinorUnits(row.settlementAmount);
         const yetToReceiveMinor = parseAmountToMinorUnits(
           yetToReceiveByCurrency.get(row.currency) ?? '0.00',
@@ -93,7 +92,7 @@ export const FinancialImpactBarChart = memo(function FinancialImpactBarChart({
           noImpactExceptionCount: row.noImpactExceptionCount,
         };
       }),
-    [totals, yetToReceiveByCurrency],
+    [totalsQuery.data, yetToReceiveByCurrency],
   );
 
   return (

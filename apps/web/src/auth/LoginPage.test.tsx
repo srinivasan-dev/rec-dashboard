@@ -16,11 +16,11 @@ describe('LoginPage', () => {
     renderWithProviders(<LoginPage />, ['/login']);
 
     await user.type(screen.getByLabelText(/email/i), 'm104@rapyd.com');
-    await user.type(screen.getByLabelText(/password/i), 'm104@123');
+    await user.type(screen.getByLabelText(/password/i), 'rapyd@2026');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
-      expect(login).toHaveBeenCalledWith('m104@rapyd.com', 'm104@123');
+      expect(login).toHaveBeenCalledWith('m104@rapyd.com', 'rapyd@2026');
     });
   });
 
@@ -45,7 +45,7 @@ describe('LoginPage', () => {
     renderWithProviders(<LoginPage />, ['/login']);
 
     await user.type(screen.getByLabelText(/email/i), 'm104@rapyd.com');
-    await user.type(screen.getByLabelText(/password/i), 'm104@123');
+    await user.type(screen.getByLabelText(/password/i), 'rapyd@2026');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't sign you in/i);

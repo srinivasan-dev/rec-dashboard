@@ -13,7 +13,7 @@ export interface DemoUser {
 }
 
 const DEMO_USERNAME = process.env.DEMO_LOGIN_USERNAME ?? 'm104@rapyd.com';
-const DEMO_PASSWORD = process.env.DEMO_LOGIN_PASSWORD ?? 'm104@123';
+const DEMO_PASSWORD = process.env.DEMO_LOGIN_PASSWORD ?? 'rapyd@2026';
 
 // Hashed once at process start -- bcrypt.compareSync (verifyPassword, below) is what actually
 // runs on every login attempt. The plaintext above exists only transiently in this module's

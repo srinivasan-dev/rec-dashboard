@@ -4,6 +4,105 @@ All notable changes to this project are recorded here, grouped by build phase (s
 `docs/project-plan.md`) rather than semver, since this is a take-home assessment, not a
 versioned package.
 
+## [Unreleased] - 2026-09-09 - Overnight Engineering & Validation Run
+
+By direct user request: a full gap-analysis-through-final-report pass to bring the repo to
+submission-ready state. Entries below are added incrementally, one per step, as the run proceeds
+(see `docs/overnight-baseline.md` for the plan and `OVERNIGHT_REPORT.md` for the final summary
+once complete).
+
+### Changed
+
+- Demo login password changed from `m104@123` to `rapyd@2026`, by direct user request. Username
+  (`m104@rapyd.com`) and `merchantId` (`M-104`) are unaffected; still overridable via
+  `DEMO_LOGIN_USERNAME`/`DEMO_LOGIN_PASSWORD` env vars. Updated in `apps/api/src/auth/userStore.ts`,
+  `README.md`, `docs/project-overview.md`, and the hardcoded `m104@123` fallback/expectation
+  literals in `apps/api/src/routes/{auth,reconciliation}.test.ts`,
+  `apps/web/src/auth/LoginPage.test.tsx`, and `apps/web/e2e/responsive.spec.ts` (by direct user
+  request, superseding this repo's earlier standing rule against modifying test files without being
+  asked — see CLAUDE.md's "Working with Claude in this repo" section, now removed).
+
+### Fixed
+
+- **`npm run build` was silently broken** — `vite build` failed with `"parseAmountToMinorUnits" is
+  not exported by ".../packages/shared/dist/index.js"`. `packages/shared` builds to CommonJS (for
+  `apps/api`'s Node `require`); Rollup's production commonjs handling couldn't statically detect
+  that one re-export, even though `tsc --noEmit` and `vite dev` both looked clean (neither reads
+  the compiled `dist/` the way `vite build` does). Fixed by aliasing the `@rapyd-portal/shared`
+  import specifier straight to its TypeScript source in `apps/web/vite.config.ts`'s
+  `resolve.alias`, removing the CJS/ESM boundary entirely for the web build. Verified: full
+  `npm run build` succeeds, `npm run typecheck` still clean, and a live browser check confirmed
+  all three chart widgets still render with real data. See `docs/overnight-baseline.md` for the
+  full root-cause writeup — this had apparently been broken since the chart widgets were added,
+  undetected because no prior session in this repo's history had run an actual production build.
+
+- **Exports were completely unreachable in the all-clear state.** Both places that render an
+  export control (`Toolbar.tsx`, and the mobile-only row in `Dashboard.tsx`) were gated on
+  `showTableSection`, which is `false` whenever there are zero exceptions — silently
+  contradicting `docs/product-spec.md` §8's explicit "Export (for record-keeping even when
+  everything matches)" and §11's "Export button remains accessible" commitments. Added a second,
+  unconditional export row that shows exactly when the table section doesn't (any viewport),
+  reusing the existing row styling. Found by a stale test assertion in `Dashboard.test.tsx` that
+  turned out to be testing real, current product intent — fixed the app, not the test.
+- **`FinancialImpactBarChart.tsx`'s `rows` memoization was defeated on every render** — `totals`
+  was computed as `totalsQuery.data ?? []`, creating a new array reference whenever `data` was
+  undefined, so the `useMemo` depending on it recomputed unconditionally. Moved the fallback
+  inside the memo callback and keyed it on `totalsQuery.data` directly (caught by the one
+  pre-existing `eslint` warning in the baseline; `npm run lint` is now 0 errors/0 warnings).
+
+### Testing
+
+- **`apps/web`: 16/16 suites, 76/76 tests green** (baseline: 8/15 suites failing, 18/60 tests).
+  Root causes fixed, not papered over:
+  - Added `internmap`/`d3-*` to Jest's `transformIgnorePatterns` (`jest.config.cjs`) — these ESM-
+    only packages (pulled in by the chart widgets) were failing `App.test.tsx`/`Dashboard.test.tsx`
+    at the module-parse stage, before any assertion ran, hiding real coverage in both suites.
+  - `ExceptionDetailPanel.test.tsx`, `ExceptionCard.test.tsx`, `ExceptionsTable.test.tsx`,
+    `Dashboard.test.tsx`: updated to mock `fetchTransactionById` (what `ExceptionDetailPanel`
+    actually calls now, via `useReconciliationTransaction`) instead of the old, effectively dead
+    `fetchExceptionById`/`useReconciliationException`; and rewrote every assertion that expected
+    the old Details/Settlement-vs-Ledger/AI-Explain **tabs**, which don't exist anymore (the panel
+    is a tab-free, always-visible two-column layout per its own docstring) — asserting on the
+    now-always-visible "Side-by-side comparison" content instead of `role="tab"`/`"tablist"`.
+    Added two new `ExceptionDetailPanel` cases (matched-transaction confirmation, load-failure
+    retry) that weren't covered before.
+  - New `Toolbar.test.tsx`: "Expand all"/"Collapse all" moved from `ExceptionsTable.tsx` to
+    `Toolbar.tsx` in an earlier, unlogged session, leaving the feature completely untested (the
+    old test asserted on it via a component that no longer renders those buttons). Added a real
+    test against `Toolbar` itself.
+  - `uiSlice.test.ts`, `useExceptionsFilters.test.tsx`: updated for the `pendingDraft` field and
+    the `pageSize: 20 → 10` default change; added a case for the "reopening the chat starts a
+    fresh conversation" reducer behavior from earlier this week, which had no test at all.
+  - `Dashboard.test.tsx`: fixed copy drift ("5 of 14 transactions need attention" →
+    "5 transactions need your review", "all 9 transactions reconciled" → "...are reconciled"),
+    widened a `getByText` to `getAllByText` now that the same reason label legitimately appears
+    in more than one place (table + the new chart legend), and removed an assertion on the "All"
+    breakdown-pill button, which `Dashboard.tsx` currently hides by design (superseded by the
+    exceptions-by-reason chart) in favor of `Toolbar`'s `FilterMenu`.
+  - `DateRangePicker.test.tsx`: the component was redesigned (in an earlier, unlogged session)
+    from "apply immediately per action" to a staged pending-range model with one shared Apply
+    button, committed only via the refresh icon (whose accessible name becomes "Apply selected
+    date range" once something's pending) — rewrote the 3 affected tests to drive that actual
+    two-step flow instead of the old immediate-apply one.
+- **`apps/api`: 9/9 suites, 57/57 tests green** (baseline: 2/9 suites failing).
+  - `reconciliation.test.ts`: fixed the stale `pageSize: 20` pagination assertion; bumped one
+    test's timeout to 15s (5 sequential real HTTP round-trips through supertest, all rejected by
+    auth middleware before touching CSV/reconciliation logic — flaky against Jest's 5s default
+    under load, not a real performance regression).
+  - `openapiDocument.ts`: added the 3 routes the router had registered but the spec didn't
+    document (`GET /summary/currency-totals`, `GET /transactions`, `GET /transactions/{id}`,
+    with new `transactionDtoSchema`/`currencyTotalsDtoSchema`), plus the `from`/`to` query params
+    `GET /summary` already accepted but never documented.
+
+### Documentation
+
+- `docs/overnight-baseline.md`: baseline `typecheck`/`lint`/`test`/`build`/`test:e2e` results
+  recorded before any further fixes, plus a catalogued list of every test failure found with its
+  root cause and which later step owns fixing it.
+- `docs/assignment-gap-analysis.md`: traceability matrix against the assessment brief, covering
+  every Part 1-4 requirement plus testing/accessibility/responsive/export, with a priority ranking
+  for what to fix first.
+
 ## [Unreleased] - 2026-09-08 - Bug Fixes, Animation Consistency, Collapsible Nav & Regression Pass
 
 By direct user request, on top of EPIC-17 below.

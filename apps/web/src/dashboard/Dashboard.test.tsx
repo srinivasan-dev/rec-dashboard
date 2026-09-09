@@ -1,7 +1,12 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { fetchExceptionById, fetchExceptions, fetchSummary } from '../api/reconciliation';
+import {
+  fetchTransactionById,
+  fetchExceptions,
+  fetchExplanation,
+  fetchSummary,
+} from '../api/reconciliation';
 import {
   ALL_CLEAR_SUMMARY,
   AMOUNT_MISMATCH_EXCEPTION,
@@ -19,12 +24,14 @@ jest.mock('../api/reconciliation', () => ({
   ...jest.requireActual('../api/reconciliation'),
   fetchSummary: jest.fn(),
   fetchExceptions: jest.fn(),
-  fetchExceptionById: jest.fn(),
+  fetchTransactionById: jest.fn(),
+  fetchExplanation: jest.fn(),
 }));
 
 const mockedFetchSummary = jest.mocked(fetchSummary);
 const mockedFetchExceptions = jest.mocked(fetchExceptions);
-const mockedFetchExceptionById = jest.mocked(fetchExceptionById);
+const mockedFetchTransactionById = jest.mocked(fetchTransactionById);
+const mockedFetchExplanation = jest.mocked(fetchExplanation);
 
 describe('Dashboard', () => {
   beforeEach(() => {
@@ -58,7 +65,7 @@ describe('Dashboard', () => {
     mockedFetchSummary.mockResolvedValueOnce(ALL_CLEAR_SUMMARY);
     await user.click(screen.getByRole('button', { name: /retry/i }));
 
-    expect(await screen.findByText(/all 9 transactions reconciled/i)).toBeInTheDocument();
+    expect(await screen.findByText(/all 9 transactions are reconciled/i)).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -67,7 +74,7 @@ describe('Dashboard', () => {
 
     renderWithProviders(<Dashboard />);
 
-    expect(await screen.findByText(/all 9 transactions reconciled/i)).toBeInTheDocument();
+    expect(await screen.findByText(/all 9 transactions are reconciled/i)).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     // Export stays available even when everything matches (docs/product-spec.md §8).
     expect(screen.getByRole('button', { name: /export exceptions/i })).toBeInTheDocument();
@@ -79,9 +86,13 @@ describe('Dashboard', () => {
 
     renderWithProviders(<Dashboard />);
 
-    expect(await screen.findByText(/5 of 14 transactions need attention/i)).toBeInTheDocument();
-    expect(screen.getByText(/amount doesn't match/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^all/i, pressed: true })).toBeInTheDocument();
+    expect(await screen.findByText(/5 transactions need your review/i)).toBeInTheDocument();
+    // Appears in more than one place now (the exceptions-by-reason chart's legend as well as the
+    // table/breakdown pill) -- just confirm the merchant-facing label is present somewhere.
+    expect(screen.getAllByText(/amount doesn't match/i).length).toBeGreaterThan(0);
+    // ExceptionBreakdown's "All"/reason filter pill row is currently hidden in favor of the
+    // ExceptionsByReasonChart widget above (Dashboard.tsx) -- reason filtering itself still works
+    // via Toolbar's FilterMenu, covered by its own "filtering by reason..." test below.
     // The exceptions query only enables once the summary confirms there's something to show
     // (see useReconciliationExceptions' `enabled` gate), so the table renders asynchronously.
     expect(await screen.findByRole('cell', { name: 'T1013' })).toBeInTheDocument();
@@ -94,7 +105,7 @@ describe('Dashboard', () => {
     renderWithProviders(<Dashboard />);
 
     // The page shell (status, cards, breakdown) renders immediately once the summary resolves...
-    expect(await screen.findByText(/5 of 14 transactions need attention/i)).toBeInTheDocument();
+    expect(await screen.findByText(/5 transactions need your review/i)).toBeInTheDocument();
     // ...while the table region shows its own loading state, not the page-level one.
     expect(screen.getByText(/loading exceptions/i)).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
@@ -108,7 +119,7 @@ describe('Dashboard', () => {
     renderWithProviders(<Dashboard />);
 
     // Page shell still renders fine -- only the table region is in an error state.
-    expect(await screen.findByText(/5 of 14 transactions need attention/i)).toBeInTheDocument();
+    expect(await screen.findByText(/5 transactions need your review/i)).toBeInTheDocument();
     const tableAlert = await screen.findByRole('alert');
     expect(tableAlert).toHaveTextContent(/couldn't load the exceptions table/i);
 
@@ -122,7 +133,11 @@ describe('Dashboard', () => {
   it('expands a row inline to show its exception detail via a keyboard-operable row action', async () => {
     mockedFetchSummary.mockResolvedValue(POPULATED_SUMMARY);
     mockedFetchExceptions.mockResolvedValue(EXCEPTIONS_RESPONSE);
-    mockedFetchExceptionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+    mockedFetchTransactionById.mockResolvedValue(AMOUNT_MISMATCH_EXCEPTION);
+    mockedFetchExplanation.mockResolvedValue({
+      explanationText: 'Explanation text.',
+      generatedBy: 'mock',
+    });
     const user = userEvent.setup();
 
     renderWithProviders(<Dashboard />);
@@ -132,11 +147,13 @@ describe('Dashboard', () => {
     });
     await user.click(expandButton);
 
-    expect(await screen.findByRole('tablist')).toBeInTheDocument();
+    // ExceptionDetailPanel is a two-column, tab-free layout now (no `tablist`/`tab` roles) --
+    // "Side-by-side comparison" is content that only renders once the panel is open.
+    expect(await screen.findByText(/side-by-side comparison/i)).toBeInTheDocument();
     // "Amount doesn't match" also appears in the row's reason pill -- assert the inline panel
     // rendered rather than a single unique element.
     expect(screen.getAllByText("Amount doesn't match").length).toBeGreaterThan(1);
-    expect(mockedFetchExceptionById).toHaveBeenCalledWith('T1013');
+    expect(mockedFetchTransactionById).toHaveBeenCalledWith('T1013');
   });
 
   it('filtering by reason re-fetches and re-renders the table with the new data', async () => {

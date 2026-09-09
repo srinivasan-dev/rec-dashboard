@@ -102,9 +102,21 @@ export function Dashboard(): JSX.Element {
             stays reachable near the top of the page, since the toolbar/all-clear section below
             can scroll out of view once summary cards and breakdown pills stack on a phone. Hidden
             everywhere else, where Toolbar already shows its own copy. Only shown once the table
-            itself is actually visible -- there's nothing to export while it's loading, errored,
-            or (all-clear) not shown at all. */}
+            itself is actually visible -- there's nothing to export while it's loading or errored. */}
         {isMobile && showTableSection && tableQuery.data ? (
+          <div className={styles.mobileExportRow}>
+            <ExportMenu filters={filters} />
+          </div>
+        ) : null}
+
+        {/* All-clear state (any viewport): neither Toolbar nor the mobile row above renders
+            (both are gated on `showTableSection`, which is false here), so without this, export
+            would be entirely unreachable once every transaction reconciles -- directly
+            contradicting docs/product-spec.md §8's "Export (for record-keeping even when
+            everything matches)" and §11's "Export button remains accessible" commitments. Reuses
+            the same row styling as the mobile-only one above; it isn't actually mobile-specific,
+            just named for its original use. */}
+        {summaryQuery.data && !showTableSection ? (
           <div className={styles.mobileExportRow}>
             <ExportMenu filters={filters} />
           </div>

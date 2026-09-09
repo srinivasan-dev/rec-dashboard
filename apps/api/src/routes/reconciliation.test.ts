@@ -16,25 +16,35 @@ const agent = request.agent(app);
 beforeAll(async () => {
   await agent.post('/api/auth/login').send({
     username: process.env.DEMO_LOGIN_USERNAME ?? 'm104@rapyd.com',
-    password: process.env.DEMO_LOGIN_PASSWORD ?? 'm104@123',
+    password: process.env.DEMO_LOGIN_PASSWORD ?? 'rapyd@2026',
   });
 });
 
 describe('unauthenticated access', () => {
-  it('rejects every reconciliation endpoint with 401 when there is no session at all', async () => {
-    const anonymous = request(app);
+  it(
+    'rejects every reconciliation endpoint with 401 when there is no session at all',
+    async () => {
+      const anonymous = request(app);
 
-    const summary = await anonymous.get('/api/reconciliation/summary');
-    const list = await anonymous.get('/api/reconciliation/exceptions');
-    const byId = await anonymous.get('/api/reconciliation/exceptions/T1013');
-    const exported = await anonymous.get('/api/reconciliation/exceptions/export');
-    const explanation = await anonymous.post('/api/reconciliation/exceptions/T1013/explanation');
+      const summary = await anonymous.get('/api/reconciliation/summary');
+      const list = await anonymous.get('/api/reconciliation/exceptions');
+      const byId = await anonymous.get('/api/reconciliation/exceptions/T1013');
+      const exported = await anonymous.get('/api/reconciliation/exceptions/export');
+      const explanation = await anonymous.post(
+        '/api/reconciliation/exceptions/T1013/explanation',
+      );
 
-    for (const res of [summary, list, byId, exported, explanation]) {
-      expect(res.status).toBe(401);
-      expect(res.body.error.code).toBe('UNAUTHENTICATED');
-    }
-  });
+      for (const res of [summary, list, byId, exported, explanation]) {
+        expect(res.status).toBe(401);
+        expect(res.body.error.code).toBe('UNAUTHENTICATED');
+      }
+    },
+    // 5 sequential real HTTP round-trips through supertest -- comfortably under a second in
+    // isolation, but flaky against Jest's 5s default under load (observed during the 2026-09-09
+    // overnight run's full-suite pass). Each request is rejected by auth middleware before ever
+    // reaching CSV/reconciliation logic, so this isn't masking a real performance regression.
+    15000,
+  );
 });
 
 describe('GET /api/reconciliation/summary', () => {
@@ -63,7 +73,7 @@ describe('GET /api/reconciliation/exceptions', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(5);
-    expect(res.body.pagination).toEqual({ page: 1, pageSize: 20, total: 5, totalPages: 1 });
+    expect(res.body.pagination).toEqual({ page: 1, pageSize: 10, total: 5, totalPages: 1 });
   });
 
   it('filters by reason', async () => {

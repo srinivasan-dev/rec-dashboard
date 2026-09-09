@@ -123,6 +123,49 @@ const summaryDtoSchema = {
   },
 } as const;
 
+const transactionDtoSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', example: 'T1006' },
+    merchantId: { type: 'string', example: 'M-104' },
+    transactionId: { type: 'string', example: 'T1006' },
+    reason: {
+      type: 'string',
+      enum: [...exceptionReasonSchema.enum, 'MATCHED'],
+    },
+    currency: { type: 'string', example: 'AED' },
+    settlement: settlementDtoSchema,
+    ledger: ledgerDtoSchema,
+    duplicateLedgerEntries: {
+      type: 'array',
+      nullable: true,
+      items: ledgerDtoSchema,
+    },
+    differenceAmount: { type: 'string', nullable: true, example: '24.31' },
+  },
+  required: [
+    'id',
+    'merchantId',
+    'transactionId',
+    'reason',
+    'currency',
+    'settlement',
+    'ledger',
+    'duplicateLedgerEntries',
+    'differenceAmount',
+  ],
+} as const;
+
+const currencyTotalsDtoSchema = {
+  type: 'object',
+  properties: {
+    currency: { type: 'string', example: 'AED' },
+    settlementAmount: { type: 'string', example: '12450.00' },
+    ledgerAmount: { type: 'string', example: '12301.35' },
+    noImpactExceptionCount: { type: 'integer', example: 1 },
+  },
+} as const;
+
 const explanationDtoSchema = {
   type: 'object',
   properties: {
@@ -175,6 +218,20 @@ export const openApiDocument = {
         tags: ['Reconciliation'],
         summary: "Get the authenticated merchant's reconciliation summary",
         description: 'Counts and per-currency financial impact, grouped by exception reason.',
+        parameters: [
+          {
+            name: 'from',
+            in: 'query',
+            schema: { type: 'string', format: 'date' },
+            description: 'ISO date, inclusive -- restricts the summary to this date range.',
+          },
+          {
+            name: 'to',
+            in: 'query',
+            schema: { type: 'string', format: 'date' },
+            description: 'ISO date, inclusive.',
+          },
+        ],
         responses: {
           '200': {
             description: 'Summary for the authenticated merchant.',
@@ -184,6 +241,36 @@ export const openApiDocument = {
               },
             },
           },
+          '400': validationErrorResponse,
+        },
+      },
+    },
+    '/summary/currency-totals': {
+      get: {
+        tags: ['Reconciliation'],
+        summary: "Get the authenticated merchant's settlement/ledger totals per currency",
+        description:
+          'Settlement-side vs. ledger-side totals per currency, across every checked ' +
+          'transaction (matched and exceptions alike) -- not just the exceptions’ financial ' +
+          'impact (see GET /summary). Backs the dashboard’s financial-impact-by-currency ' +
+          'widget. Accepts the same `from`/`to` date-range filter as GET /summary.',
+        parameters: [
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+        ],
+        responses: {
+          '200': {
+            description: 'Per-currency totals for the authenticated merchant.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: { data: { type: 'array', items: currencyTotalsDtoSchema } },
+                },
+              },
+            },
+          },
+          '400': validationErrorResponse,
         },
       },
     },
@@ -379,6 +466,84 @@ export const openApiDocument = {
             content: {
               'application/json': {
                 schema: { type: 'object', properties: { data: exceptionDtoSchema } },
+              },
+            },
+          },
+          '404': notFoundResponse,
+        },
+      },
+    },
+    '/transactions': {
+      get: {
+        tags: ['Reconciliation'],
+        summary:
+          "List every checked transaction for the authenticated merchant -- matched and exceptions alike",
+        description:
+          'Same shape, filters, and pagination as GET /exceptions, widened to also include ' +
+          'matched transactions (`reason: "MATCHED"`) -- backs the dashboard’s "show matched ' +
+          'transactions" toggle (Toolbar.tsx). Exceptions-only views should keep using GET ' +
+          '/exceptions instead.',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+          {
+            name: 'pageSize',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
+          },
+          { name: 'reason', in: 'query', schema: exceptionReasonSchema },
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+          {
+            name: 'sortBy',
+            in: 'query',
+            schema: {
+              type: 'string',
+              enum: ['transactionDate', 'transactionId', 'reason', 'differenceAmount'],
+              default: 'transactionDate',
+            },
+          },
+          {
+            name: 'sortOrder',
+            in: 'query',
+            schema: { type: 'string', enum: ['asc', 'desc'], default: 'asc' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: "A page of the authenticated merchant's transactions.",
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: transactionDtoSchema },
+                    pagination: paginationSchema,
+                  },
+                },
+              },
+            },
+          },
+          '400': validationErrorResponse,
+        },
+      },
+    },
+    '/transactions/{id}': {
+      get: {
+        tags: ['Reconciliation'],
+        summary:
+          'Get one transaction (matched or exception) by transaction ID, scoped to the authenticated merchant',
+        description:
+          'Same lookup as GET /exceptions/{id}, widened to also resolve a matched transaction -- ' +
+          'backs the inline exception-detail panel, which can expand either kind of row.',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' }, example: 'T1006' },
+        ],
+        responses: {
+          '200': {
+            description: 'The transaction, if it belongs to the authenticated merchant.',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { data: transactionDtoSchema } },
               },
             },
           },

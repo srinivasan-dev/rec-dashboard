@@ -11,7 +11,7 @@ import { expect, test, type Page } from '@playwright/test';
 async function login(page: Page): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('Email').fill('m104@rapyd.com');
-  await page.getByLabel('Password').fill('m104@123');
+  await page.getByLabel('Password').fill('rapyd@2026');
   await page.getByRole('button', { name: /sign in/i }).click();
   await expect(page.getByRole('heading', { name: /settlement reconciliation/i })).toBeVisible();
 }

@@ -20,11 +20,26 @@
   gap: 16px;
 }
 
+.logoMark {
+  align-self: center;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-brand);
+  color: var(--color-text-inverse);
+  font-size: 20px;
+  font-weight: 800;
+}
+
 .heading {
   font-size: 20px;
   font-weight: 800;
   color: var(--color-text);
   margin: 0;
+  text-align: center;
 }
 
 .subheading {

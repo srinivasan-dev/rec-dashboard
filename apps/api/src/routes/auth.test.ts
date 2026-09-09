@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createApp } from '../app';
 
 const DEMO_USERNAME = process.env.DEMO_LOGIN_USERNAME ?? 'm104@rapyd.com';
-const DEMO_PASSWORD = process.env.DEMO_LOGIN_PASSWORD ?? 'm104@123';
+const DEMO_PASSWORD = process.env.DEMO_LOGIN_PASSWORD ?? 'rapyd@2026';
 
 describe('POST /api/auth/login', () => {
   it('logs in with the correct demo credentials and sets a session cookie', async () => {

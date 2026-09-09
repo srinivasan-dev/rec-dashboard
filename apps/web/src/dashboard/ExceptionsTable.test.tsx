@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import type { Pagination, SortBy, SortOrder } from '../api/types';
-import { fetchExceptionById } from '../api/reconciliation';
+import { fetchTransactionById, fetchExplanation } from '../api/reconciliation';
 import { store } from '../store/store';
 import { allRowsCollapsed } from '../store/uiSlice';
 import { AMOUNT_MISMATCH_EXCEPTION } from '../test/fixtures';
@@ -11,10 +11,12 @@ import { ExceptionsTable } from './ExceptionsTable';
 
 jest.mock('../api/reconciliation', () => ({
   ...jest.requireActual('../api/reconciliation'),
-  fetchExceptionById: jest.fn(),
+  fetchTransactionById: jest.fn(),
+  fetchExplanation: jest.fn(),
 }));
 
-const mockedFetchExceptionById = jest.mocked(fetchExceptionById);
+const mockedFetchTransactionById = jest.mocked(fetchTransactionById);
+const mockedFetchExplanation = jest.mocked(fetchExplanation);
 
 const EXCEPTION = AMOUNT_MISMATCH_EXCEPTION;
 
@@ -41,7 +43,11 @@ function renderTable(
 
 describe('ExceptionsTable', () => {
   beforeEach(() => {
-    mockedFetchExceptionById.mockResolvedValue(EXCEPTION);
+    mockedFetchTransactionById.mockResolvedValue(EXCEPTION);
+    mockedFetchExplanation.mockResolvedValue({
+      explanationText: 'Explanation text.',
+      generatedBy: 'mock',
+    });
     // renderWithProviders shares one real store across every test in this file (see that
     // helper's docstring) -- reset the expand state each test rather than letting whichever row
     // a previous test left expanded leak into the next one.
@@ -84,14 +90,14 @@ describe('ExceptionsTable', () => {
     const user = userEvent.setup();
     renderTable({ page: 1, pageSize: 20, total: 1, totalPages: 1 });
 
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByText(/side-by-side comparison/i)).not.toBeInTheDocument();
 
     const toggle = screen.getByRole('button', {
       name: /expand details for transaction t1013/i,
     });
     await user.click(toggle);
 
-    expect(await screen.findByRole('tablist')).toBeInTheDocument();
+    expect(await screen.findByText(/side-by-side comparison/i)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /collapse details for transaction t1013/i }),
     ).toHaveAttribute('aria-expanded', 'true');
@@ -102,25 +108,18 @@ describe('ExceptionsTable', () => {
     renderTable({ page: 1, pageSize: 20, total: 1, totalPages: 1 });
 
     await user.click(screen.getByRole('button', { name: /expand details for transaction t1013/i }));
-    await screen.findByRole('tablist');
+    await screen.findByText(/side-by-side comparison/i);
 
     await user.click(
       screen.getByRole('button', { name: /collapse details for transaction t1013/i }),
     );
 
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByText(/side-by-side comparison/i)).not.toBeInTheDocument();
   });
 
-  it('"Expand all" opens every row and "Collapse all" closes them', async () => {
-    const user = userEvent.setup();
-    renderTable({ page: 1, pageSize: 20, total: 1, totalPages: 1 });
-
-    await user.click(screen.getByRole('button', { name: /^expand all$/i }));
-    expect(await screen.findByRole('tablist')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /^collapse all$/i }));
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-  });
+  // "Expand all"/"Collapse all" now live in Toolbar.tsx, not here (see that file's docstring) --
+  // covered by Toolbar.test.tsx instead, since this component doesn't render those buttons on its
+  // own and a test importing Toolbar just to click them would no longer be testing this file.
 
   it('omits pagination controls when no pagination is supplied (search-results mode)', () => {
     renderTable(undefined);
@@ -179,17 +178,17 @@ describe('ExceptionsTable', () => {
       const user = userEvent.setup();
       renderTable({ page: 1, pageSize: 20, total: 1, totalPages: 1 });
 
-      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(screen.queryByText(/side-by-side comparison/i)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: new RegExp(EXCEPTION.transactionId) }));
-      expect(await screen.findByRole('tablist')).toBeInTheDocument();
+      expect(await screen.findByText(/side-by-side comparison/i)).toBeInTheDocument();
 
       await user.click(
         screen.getByRole('button', {
           name: `Close details for transaction ${EXCEPTION.transactionId}`,
         }),
       );
-      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(screen.queryByText(/side-by-side comparison/i)).not.toBeInTheDocument();
     });
 
     it('still supports pagination in card mode', () => {

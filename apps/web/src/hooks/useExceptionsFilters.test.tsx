@@ -16,14 +16,15 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('useExceptionsFilters', () => {
-  it('defaults to page 1, pageSize 20, sortBy transactionDate, sortOrder asc', () => {
+  it('defaults to page 1, pageSize 10, sortBy transactionDate, sortOrder asc', () => {
     const { result } = renderHook(() => useExceptionsFilters(), { wrapper });
 
     expect(result.current[0]).toEqual({
       page: 1,
-      pageSize: 20,
+      pageSize: 10,
       sortBy: 'transactionDate',
       sortOrder: 'asc',
+      showMatched: false,
     });
   });
 

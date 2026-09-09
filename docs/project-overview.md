@@ -99,7 +99,7 @@ _(Keep this in sync with `docs/project-plan.md` — they must never disagree.)_
   See `docs/sessions/2026-09-07-phase8-llm-explanation.md`.
 - The dashboard is real, runnable, and **now styled**: `npm run dev:api` + `npm run dev:web`,
   open `http://localhost:5173` — you'll land on a login page first (demo: `m104@rapyd.com` /
-  `m104@123`, see EPIC-15 above). Once signed in, it renders live against M-104's real data —
+  `rapyd@2026`, see EPIC-15 above). Once signed in, it renders live against M-104's real data —
   status, summary cards, exception breakdown, filters, sortable/paginated table, export, and a
   real accessible exception-detail drawer (focus trap, Escape, focus return, Details / Settlement
   vs. Ledger / AI Explain tabs). Visual design applied from `docs/design/Rapyd Settlement

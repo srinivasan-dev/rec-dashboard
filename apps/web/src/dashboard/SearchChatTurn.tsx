@@ -73,9 +73,14 @@ export function SearchChatTurn({ query }: SearchChatTurnProps): JSX.Element {
   // component instance (keyed by index in SearchChatPanel.tsx), so asking for a second ticket
   // later in the same conversation naturally gets a fresh number.
   const ticketNumber = useMemo(() => generateTicketNumber(), []);
+  // Guards against React 18 StrictMode's dev-only double-invoke of mount effects (main.tsx wraps
+  // the app in <StrictMode>) -- without this, the toast dispatch below fired twice per ticket in
+  // dev, since a bare `useEffect(..., [])` runs on every mount, and StrictMode mounts twice.
+  const hasShownToastRef = useRef(false);
 
   useEffect(() => {
-    if (!isSupportTicket) return;
+    if (!isSupportTicket || hasShownToastRef.current) return;
+    hasShownToastRef.current = true;
     dispatch(
       toastShown({
         id: `toast-${Date.now()}`,

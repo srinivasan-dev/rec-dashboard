@@ -47,6 +47,9 @@ export function LoginPage(): JSX.Element {
   return (
     <main className={styles.page}>
       <form className={styles.card} onSubmit={(event) => void handleSubmit(event)}>
+        <span className={styles.logoMark} aria-hidden="true">
+          R
+        </span>
         <h1 className={styles.heading}>Settlement Reconciliation</h1>
         <p className={styles.subheading}>Sign in to see your reconciliation status.</p>
 
