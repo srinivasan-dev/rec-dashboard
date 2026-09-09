@@ -75,6 +75,8 @@ error handling, standing assumptions): [`docs/architecture.md`](docs/architectur
 
 ## How to run
 
+Requires Node.js 20 (pinned in `.nvmrc` — run `nvm use` if you have nvm installed).
+
 ```bash
 npm install
 
@@ -98,7 +100,7 @@ surface only; it has no bearing on the reconciliation endpoints' own merchant-se
 ```bash
 npm run typecheck    # all workspaces
 npm run lint
-npm run test         # unit tests, all workspaces (143 tests: 57 apps/api, 58 apps/web, 28 packages/shared)
+npm run test         # unit tests, all workspaces (161 tests: 57 apps/api, 76 apps/web, 28 packages/shared)
 npm run test:e2e     # Playwright smoke test, apps/web (starts its own dev server)
 npm run build        # packages/shared → apps/api → apps/web
 ```
