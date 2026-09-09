@@ -51,8 +51,7 @@ matches it closely (see the Design Implementation entry in
 | Backend tests       | Jest + Supertest                                                                                  |
 | Frontend unit tests | Jest + React Testing Library                                                                      |
 | Frontend e2e tests  | Playwright                                                                                        |
-| Pre-commit gate     | Husky + lint-staged (lint + typecheck)                                                            |
-| Commit messages     | Conventional Commits, enforced via commitlint + Husky `commit-msg`                                |
+| Commit messages     | Conventional Commits by convention (no longer enforced by a hook)                                 |
 | CI                  | GitHub Actions — lint, typecheck, unit tests, build, e2e on every push/PR                         |
 | Monorepo            | npm workspaces (three packages didn't justify Nx/Turborepo)                                       |
 
@@ -85,8 +84,9 @@ npm run dev:web      # Vite dev server on http://localhost:5173 (proxies /api to
 
 Open `http://localhost:5173` — you'll land on a login page. Sign in with the demo account:
 **`m104@rapyd.com` / `rapyd@2026`** (override via `DEMO_LOGIN_USERNAME` / `DEMO_LOGIN_PASSWORD` env
-vars). A pre-commit hook (Husky + lint-staged) runs lint/format/typecheck automatically on
-`git commit` — no extra setup beyond `npm install`.
+vars). No git hooks run automatically on commit — run `npm run lint`, `npm run typecheck`, and
+`npm run format:check` yourself before committing (CI runs the same checks plus tests/build/e2e
+as the actual gate before merge).
 
 Interactive API docs (Swagger UI) are at `http://localhost:4000/api/docs/`, gated behind HTTP
 Basic Auth — default dev credentials `admin` / `admin123` (override via the `SWAGGER_DOCS_USER` /

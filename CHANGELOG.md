@@ -4,6 +4,16 @@ All notable changes to this project are recorded here, grouped by build phase (s
 `docs/project-plan.md`) rather than semver, since this is a take-home assessment, not a
 versioned package.
 
+## [Unreleased] - 2026-09-09 - Remove Git Hooks
+
+By direct user request: removed Husky and lint-staged entirely (`.husky/` directory, `prepare`
+script, `lint-staged` config block, both dependencies uninstalled) and unset the repo-local
+`core.hooksPath` git config, so no pre-commit or commit-msg hook runs automatically anymore.
+`@commitlint/*` config/deps were left in place (not asked to remove; Conventional Commits remains
+the house style for messages, just unenforced now). Updated `README.md` and `CLAUDE.md`'s
+"Before you commit" section to describe the new manual `lint`/`typecheck`/`format:check` workflow,
+and to note CI (`.github/workflows/ci.yml`, unaffected by this change) is now the only actual gate.
+
 ## [Unreleased] - 2026-09-09 - Overnight Engineering & Validation Run
 
 By direct user request: a full gap-analysis-through-final-report pass to bring the repo to

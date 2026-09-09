@@ -52,17 +52,15 @@ Full detail lives in per-stack docs — read the relevant one before writing cod
 
 ## Before you commit
 
-- A **pre-commit** hook (Husky + lint-staged) runs ESLint + Prettier on staged files and a full
-  `typecheck` automatically.
-- A **commit-msg** hook (commitlint) enforces [Conventional Commits](https://www.conventionalcommits.org/)
-  (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, …) — write commit messages in that
-  format or the commit is rejected.
+- No local git hooks run automatically (Husky/lint-staged were removed by direct request) — run
+  `npm run lint`, `npm run typecheck`, and `npm run format:check` yourself before committing.
+  Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, …) are still the
+  house style for commit messages, just no longer enforced by a `commit-msg` hook.
 - See `docs/standards/backend-standards.md` / `frontend-standards.md` "Testing" sections for
-  what to run manually before opening a PR (full test suite, e2e where relevant) — hooks are a
-  fast local gate, not a substitute for CI.
+  what to run manually before opening a PR (full test suite, e2e where relevant).
 - **CI** (`.github/workflows/ci.yml`) runs lint, typecheck, all unit tests, the build, and the
-  e2e suite on every push and PR — the same checks as local hooks plus e2e, as the actual gate
-  before merge.
+  e2e suite on every push and PR — this is now the actual gate before merge, since local hooks no
+  longer run any of these automatically.
 
 ## When in doubt
 
